@@ -1,0 +1,17 @@
+name: burst2safe
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python>=3.9
+  - pip
+  - gdal
+  - boto3
+  - tqdm
+  - numpy
+  - requests
+  - lxml
+  - asf_search
+  # For packaging, and testing
+  - pytest
+  - pytest-cov
