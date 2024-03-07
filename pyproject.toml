@@ -44,7 +44,8 @@ dependencies = [
 Homepage = "https://github.com/forrestfwilliams/burst2safe"
 "Bug Tracker" ="https://github.com/forrestfwilliams/burst2safe/issues"
 
-# [project.scripts]
+[project.scripts]
+burst2safe = "burst2safe.burst2safe:main"
 
 [project.optional-dependencies]
 develop = [
