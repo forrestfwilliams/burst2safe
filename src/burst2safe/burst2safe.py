@@ -21,7 +21,7 @@ class BurstInfo:
     slc_granule: str
     swath: str
     polarization: str
-    burst_number: int
+    burst_index: int
     direction: str
     absolute_orbit: int
     date: datetime
@@ -30,7 +30,6 @@ class BurstInfo:
     metadata_url: Path
     metadata_path: Path
     start_utc: datetime = None
-    stop_utc: datetime = None
     length: int = None
     width: int = None
 
@@ -38,6 +37,12 @@ class BurstInfo:
         """Add shape information to the BurstInfo object."""
         info = gdal.Info(str(self.data_path), format='json')
         self.width, self.length = info['size']
+
+    def add_start_utc(self):
+        """Add start UTC to burst info."""
+        annotation = get_subxml_from_burst_metadata(self.metadata_path, 'product', self.swath, self.polarization)
+        start_utc_str = annotation.findall('.//burst')[self.burst_index].find('azimuthTime').text
+        self.start_utc = datetime.fromisoformat(start_utc_str)
 
 
 def optional_wd(wd: Optional[Path | str]) -> None:
@@ -79,7 +84,7 @@ def get_burst_info(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
         data_url = result.properties['url']
         data_path = work_dir / f'{burst_granule}.tiff'
         metadata_url = result.properties['additionalUrls'][0]
-        metadata_path = work_dir / f'{burst_granule}.xml'
+        metadata_path = work_dir / f'{slc_granule}_{polarization}.xml'
 
         burst_info = BurstInfo(
             burst_granule,
@@ -116,8 +121,49 @@ def create_product_name(burst_infos: Iterable[BurstInfo]) -> str:
 def get_measurement_name(product_name: str, swath: str, pol: str, image_number: int) -> str:
     """Create a measurement name for given dataset."""
     platfrom, _, _, _, _, start, stop, orbit, data_take, _ = product_name.lower().split('_')
-    product_name = f'{platfrom}-{swath.lower()}-slc-{pol.lower()}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}.tiff'
+    product_name = (
+        f'{platfrom}-{swath.lower()}-slc-{pol.lower()}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}.tiff'
+    )
     return product_name
+
+
+def get_subxml_from_burst_metadata(metadata_path: str, xml_type: str, subswath: str = None, polarization: str = None):
+    """Extract child xml info from ASF combined metadata file.
+
+    Args:
+        metadata_path: Path to metadata file
+        xml_typ: Desired type of metadata to obtain (product, noise, calibration, or rfi)
+        subswath: Desired subswath to obtain data for
+        polarization: Desired polarization to obtain data for
+
+    Returns:
+        lxml Element for desired metadata
+    """
+    with open(metadata_path, 'r') as metadata_file:
+        metadata = ET.parse(metadata_file).getroot()
+
+    if xml_type == 'manifest':
+        name = 'manifest.xml'
+        desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
+        return name, desired_metadata
+
+    possible_types = ['product', 'noise', 'calibration', 'rfi']
+    if xml_type not in possible_types:
+        raise ValueError(f'Metadata type {xml_type} not one of {" ".join(possible_types)}')
+
+    if subswath is None or polarization is None:
+        raise ValueError('subswath and polarization must be provided for non-manifest files')
+
+    correct_type = [x for x in metadata.find('metadata').iterchildren() if x.tag == xml_type]
+    correct_swath = [x for x in correct_type if x.find('swath').text == subswath]
+    correct_pol = [x for x in correct_swath if x.find('polarisation').text == polarization]
+
+    if not correct_pol:
+        desired_metadata = None
+    else:
+        desired_metadata = correct_pol[0].find('content')
+
+    return desired_metadata
 
 
 def bursts_to_tiff(burst_infos: Iterable[BurstInfo], out_path: Path, work_dir: Path):
@@ -179,15 +225,16 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
     work_dir = optional_wd(work_dir)
     burst_infos = get_burst_info(granules, work_dir)
-    urls = [x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]
-    paths = [x.data_path for x in burst_infos] + [x.metadata_path for x in burst_infos]
+    urls = list(dict.fromkeys([x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]))
+    paths = list(dict.fromkeys([x.data_path for x in burst_infos] + [x.metadata_path for x in burst_infos]))
     for url, path in zip(urls, paths):
         asf_search.download_url(url=url, path=path.parent, filename=path.name)
     product_name = create_product_name(burst_infos)
-    safe_dir = create_safe_directory(product_name, work_dir)
     [x.add_shape_info() for x in burst_infos]
+    safe_dir = create_safe_directory(product_name, work_dir)
     measurement_name = get_measurement_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, 1)
     bursts_to_tiff(burst_infos, safe_dir / 'measurement' / measurement_name, work_dir)
+    [x.add_start_utc() for x in burst_infos]
 
 
 def main() -> None:
