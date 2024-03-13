@@ -53,7 +53,7 @@ class BurstInfo:
         self.stop_utc = self.start_utc + (self.length * timedelta(seconds=azimuth_time_interval))
 
 
-def optional_wd(wd: Optional[Path | str]) -> None:
+def optional_wd(wd: Optional[Path | str] = None) -> None:
     """Return the working directory as a Path object"""
     if wd is None:
         wd = Path.cwd()
@@ -263,6 +263,57 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
     return safe_dir
 
 
+def write_xml(element: ET.Element, out_path: Path) -> None:
+    tree = ET.ElementTree(element)
+    ET.indent(tree, space='  ')
+    tree.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def update_ads_header(ads_header: ET.Element, start_utc: datetime, stop_utc: datetime, image_number: int) -> ET.Element:
+    """Update the adsHeader element with new start and stop times and image number."""
+    new_ads_header = deepcopy(ads_header)
+    new_ads_header.find('startTime').text = start_utc.isoformat()
+    new_ads_header.find('stopTime').text = stop_utc.isoformat()
+    new_ads_header.find('imageNumber').text = f'{image_number:03d}'
+    return new_ads_header
+
+
+def filter_elements_by_az_time(
+    element: ET.Element,
+    min_anx: datetime,
+    max_anx: datetime,
+    buffer: Optional[timedelta] = timedelta(seconds=3),
+    start_line: Optional[int] = None,
+) -> List[ET.Element]:
+    """Filter elements by azimuth time. Optionally adjust line number."""
+
+    min_anx_bound = min_anx - timedelta(seconds=3)
+    max_anx_bound = max_anx + timedelta(seconds=3)
+
+    list_name = element.tag
+    elements = element.findall('*')
+    names = list(set([x.tag for x in elements]))
+    if len(names) != 1:
+        raise ValueError('Element must contain only one type of subelement.')
+
+    filtered_elements = []
+    for element in elements:
+        azimuth_time = datetime.fromisoformat(element.find('azimuthTime').text)
+        if min_anx_bound < azimuth_time < max_anx_bound:
+            filtered_elements.append(deepcopy(element))
+
+    if start_line:
+        for element in filtered_elements:
+            element.find('line').text = str(int(element.find('line').text) - start_line)
+
+    new_element = ET.Element(list_name)
+    for element in filtered_elements:
+        new_element.append(element)
+    new_element.set('count', str(len(filtered_elements)))
+
+    return new_element
+
+
 def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path) -> None:
     """Merge calibration data into a single file."""
     metadata_paths = list(dict.fromkeys([x.metadata_path for x in burst_infos]))
@@ -272,38 +323,23 @@ def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_
     swath, pol = burst_infos[0].swath, burst_infos[0].polarization
     start_line = burst_infos[0].burst_index * burst_infos[0].length
     min_anx = min([x.start_utc for x in burst_infos])
-    min_anx_lower = min_anx - timedelta(seconds=3)
     max_anx = max([x.stop_utc for x in burst_infos])
-    max_anx_upper = max_anx + timedelta(seconds=3)
 
     new_calibration = ET.Element('calibration')
     calibration = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'calibration', swath, pol)
 
-    ads_header = deepcopy(calibration.find('adsHeader'))
-    ads_header.find('startTime').text = min_anx.isoformat()
-    ads_header.find('stopTime').text = max_anx.isoformat()
-    ads_header.find('imageNumber').text = f'{image_number:03d}'
+    ads_header = update_ads_header(calibration.find('adsHeader'), min_anx, max_anx, image_number)
     new_calibration.append(ads_header)
 
     calibration_information = deepcopy(calibration.find('calibrationInformation'))
     new_calibration.append(calibration_information)
 
-    calibration_vector_list = deepcopy(calibration.find('calibrationVectorList'))
-    new_calibration_vector_list = ET.Element('calibrationVectorList')
-    for vector in calibration_vector_list.findall('calibrationVector'):
-        vector_time = datetime.fromisoformat(vector.find('azimuthTime').text)
-        if min_anx_lower < vector_time < max_anx_upper:
-            new_vector = deepcopy(vector)
-            new_vector.find('line').text = str(int(vector.find('line').text) - start_line)
-            new_calibration_vector_list.append(new_vector)
-    n_vectors = str(len(new_calibration_vector_list.findall('calibrationVector')))
-    new_calibration_vector_list.set('count', n_vectors)
-    new_calibration.append(new_calibration_vector_list)
+    cal_vectors = calibration.find('calibrationVectorList')
+    new_cal_vectors = filter_elements_by_az_time(cal_vectors, min_anx, max_anx, start_line)
+    new_calibration.append(new_cal_vectors)
 
     new_calibration_path = safe_dir / 'annotation' / 'calibration' / f'{swath}_{pol}_{image_number:03d}.xml'
-    tree = ET.ElementTree(new_calibration)
-    ET.indent(tree, space='  ')
-    tree.write(new_calibration_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+    write_xml(new_calibration, new_calibration_path)
 
 
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
