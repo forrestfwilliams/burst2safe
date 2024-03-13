@@ -1,7 +1,9 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
 from argparse import ArgumentParser
+from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from itertools import product
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -21,6 +23,7 @@ class BurstInfo:
     slc_granule: str
     swath: str
     polarization: str
+    burst_id: int
     burst_index: int
     direction: str
     absolute_orbit: int
@@ -30,6 +33,7 @@ class BurstInfo:
     metadata_url: Path
     metadata_path: Path
     start_utc: datetime = None
+    stop_utc: datetime = None
     length: int = None
     width: int = None
 
@@ -38,11 +42,15 @@ class BurstInfo:
         info = gdal.Info(str(self.data_path), format='json')
         self.width, self.length = info['size']
 
-    def add_start_utc(self):
-        """Add start UTC to burst info."""
+    def add_start_stop_utc(self):
+        """Add start and stop UTC to burst info.
+        There is spatial overlap between bursts, so burst start/stop times will overlap as well.
+        """
         annotation = get_subxml_from_burst_metadata(self.metadata_path, 'product', self.swath, self.polarization)
         start_utc_str = annotation.findall('.//burst')[self.burst_index].find('azimuthTime').text
         self.start_utc = datetime.fromisoformat(start_utc_str)
+        azimuth_time_interval = float(annotation.find('.//azimuthTimeInterval').text)
+        self.stop_utc = self.start_utc + (self.length * timedelta(seconds=azimuth_time_interval))
 
 
 def optional_wd(wd: Optional[Path | str]) -> None:
@@ -52,7 +60,49 @@ def optional_wd(wd: Optional[Path | str]) -> None:
     return Path(wd)
 
 
-def get_burst_info(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
+def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
+    results = asf_search.search(product_list=[granule])
+    if len(results) == 0:
+        raise ValueError(f'ASF Search failed to find {granule}.')
+    if len(results) > 1:
+        raise ValueError(f'ASF Search found multiple results for {granule}.')
+    result = results[0]
+
+    burst_granule = result.properties['fileID']
+    slc_granule = result.umm['InputGranules'][0].split('-')[0]
+    swath = result.properties['burst']['subswath'].upper()
+    polarization = result.properties['polarization'].upper()
+    burst_id = int(result.properties['burst']['relativeBurstID'])
+    burst_index = int(result.properties['burst']['burstIndex'])
+    direction = result.properties['flightDirection'].upper()
+    absolute_orbit = int(result.properties['orbit'])
+    date_format = '%Y%m%dT%H%M%S'
+    burst_time_str = burst_granule.split('_')[3]
+    burst_time = datetime.strptime(burst_time_str, date_format)
+    data_url = result.properties['url']
+    data_path = work_dir / f'{burst_granule}.tiff'
+    metadata_url = result.properties['additionalUrls'][0]
+    metadata_path = work_dir / f'{slc_granule}_{polarization}.xml'
+
+    burst_info = BurstInfo(
+        burst_granule,
+        slc_granule,
+        swath,
+        polarization,
+        burst_id,
+        burst_index,
+        direction,
+        absolute_orbit,
+        burst_time,
+        data_url,
+        data_path,
+        metadata_url,
+        metadata_path,
+    )
+    return burst_info
+
+
+def gather_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
     """Get burst information from ASF Search.
 
     Args:
@@ -62,46 +112,30 @@ def get_burst_info(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
         A list of BurstInfo objects.
     """
     work_dir = optional_wd(work_dir)
-    burst_infos = []
+    burst_info_list = []
     for granule in granules:
-        results = asf_search.search(product_list=[granule])
-        if len(results) == 0:
-            raise ValueError(f'ASF Search failed to find {granule}.')
-        if len(results) > 1:
-            raise ValueError(f'ASF Search found multiple results for {granule}.')
-        result = results[0]
+        burst_info = get_burst_info(granule, work_dir)
+        burst_info_list.append(burst_info)
 
-        burst_granule = result.properties['fileID']
-        slc_granule = result.umm['InputGranules'][0].split('-')[0]
-        swath = result.properties['burst']['subswath'].upper()
-        polarization = result.properties['polarization'].upper()
-        burst_number = int(result.properties['burst']['burstIndex'])
-        direction = result.properties['flightDirection'].upper()
-        absolute_orbit = int(result.properties['orbit'])
-        date_format = '%Y%m%dT%H%M%S'
-        burst_time_str = burst_granule.split('_')[3]
-        burst_time = datetime.strptime(burst_time_str, date_format)
-        data_url = result.properties['url']
-        data_path = work_dir / f'{burst_granule}.tiff'
-        metadata_url = result.properties['additionalUrls'][0]
-        metadata_path = work_dir / f'{slc_granule}_{polarization}.xml'
+    return burst_info_list
 
-        burst_info = BurstInfo(
-            burst_granule,
-            slc_granule,
-            swath,
-            polarization,
-            burst_number,
-            direction,
-            absolute_orbit,
-            burst_time,
-            data_url,
-            data_path,
-            metadata_url,
-            metadata_path,
-        )
 
-        burst_infos.append(burst_info)
+def sort_burst_infos(burst_info_list):
+    burst_infos = {}
+    for burst_info in burst_info_list:
+        if burst_info.swath not in burst_infos:
+            burst_infos[burst_info.swath] = {}
+
+        if burst_info.polarization not in burst_infos[burst_info.swath]:
+            burst_infos[burst_info.swath][burst_info.polarization] = []
+
+        burst_infos[burst_info.swath][burst_info.polarization].append(burst_info)
+
+    swaths = list(burst_infos.keys())
+    polarizations = list(burst_infos[swaths[0]].keys())
+    for swath, polarization in zip(swaths, polarizations):
+        burst_infos[swath][polarization] = sorted(burst_infos[swath][polarization], key=lambda x: x.burst_id)
+
     return burst_infos
 
 
@@ -209,6 +243,7 @@ def bursts_to_tiff(burst_infos: Iterable[BurstInfo], out_path: Path, work_dir: P
         )
     tree = ET.ElementTree(vrt_dataset)
     tree.write(vrt_path, pretty_print=True, xml_declaration=False, encoding='utf-8')
+    # TODO add geotiff metadata
     gdal.Translate(str(out_path), str(vrt_path), format='GTiff')
 
 
@@ -216,25 +251,84 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
     """Create a directory for the SAFE file."""
     safe_dir = work_dir / product_name
     annotations_dir = safe_dir / 'annotation'
+    calibration_dir = annotations_dir / 'calibration'
+    noise_dir = annotations_dir / 'noise'
+    rfi_dir = annotations_dir / 'rfi'
     measurements_dir = safe_dir / 'measurement'
-    annotations_dir.mkdir(parents=True, exist_ok=True)
+
+    calibration_dir.mkdir(parents=True, exist_ok=True)
+    noise_dir.mkdir(parents=True, exist_ok=True)
+    rfi_dir.mkdir(parents=True, exist_ok=True)
     measurements_dir.mkdir(parents=True, exist_ok=True)
     return safe_dir
 
 
+def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path) -> None:
+    """Merge calibration data into a single file."""
+    metadata_paths = list(dict.fromkeys([x.metadata_path for x in burst_infos]))
+    if len(metadata_paths) != 1:
+        raise UserWarning('Multiple metadata files not yet supported.')
+
+    swath, pol = burst_infos[0].swath, burst_infos[0].polarization
+    start_line = burst_infos[0].burst_index * burst_infos[0].length
+    min_anx = min([x.start_utc for x in burst_infos])
+    min_anx_lower = min_anx - timedelta(seconds=3)
+    max_anx = max([x.stop_utc for x in burst_infos])
+    max_anx_upper = max_anx + timedelta(seconds=3)
+
+    new_calibration = ET.Element('calibration')
+    calibration = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'calibration', swath, pol)
+
+    ads_header = deepcopy(calibration.find('adsHeader'))
+    ads_header.find('startTime').text = min_anx.isoformat()
+    ads_header.find('stopTime').text = max_anx.isoformat()
+    ads_header.find('imageNumber').text = f'{image_number:03d}'
+    new_calibration.append(ads_header)
+
+    calibration_information = deepcopy(calibration.find('calibrationInformation'))
+    new_calibration.append(calibration_information)
+
+    calibration_vector_list = deepcopy(calibration.find('calibrationVectorList'))
+    new_calibration_vector_list = ET.Element('calibrationVectorList')
+    for vector in calibration_vector_list.findall('calibrationVector'):
+        vector_time = datetime.fromisoformat(vector.find('azimuthTime').text)
+        if min_anx_lower < vector_time < max_anx_upper:
+            new_vector = deepcopy(vector)
+            new_vector.find('line').text = str(int(vector.find('line').text) - start_line)
+            new_calibration_vector_list.append(new_vector)
+    n_vectors = str(len(new_calibration_vector_list.findall('calibrationVector')))
+    new_calibration_vector_list.set('count', n_vectors)
+    new_calibration.append(new_calibration_vector_list)
+
+    new_calibration_path = safe_dir / 'annotation' / 'calibration' / f'{swath}_{pol}_{image_number:03d}.xml'
+    tree = ET.ElementTree(new_calibration)
+    ET.indent(tree, space='  ')
+    tree.write(new_calibration_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
     work_dir = optional_wd(work_dir)
-    burst_infos = get_burst_info(granules, work_dir)
+    burst_infos = gather_burst_infos(granules, work_dir)
     urls = list(dict.fromkeys([x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]))
     paths = list(dict.fromkeys([x.data_path for x in burst_infos] + [x.metadata_path for x in burst_infos]))
     for url, path in zip(urls, paths):
         asf_search.download_url(url=url, path=path.parent, filename=path.name)
-    product_name = create_product_name(burst_infos)
+
     [x.add_shape_info() for x in burst_infos]
+    [x.add_start_stop_utc() for x in burst_infos]
+
+    product_name = create_product_name(burst_infos)
     safe_dir = create_safe_directory(product_name, work_dir)
-    measurement_name = get_measurement_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, 1)
-    bursts_to_tiff(burst_infos, safe_dir / 'measurement' / measurement_name, work_dir)
-    [x.add_start_utc() for x in burst_infos]
+
+    burst_infos = sort_burst_infos(burst_infos)
+    swaths = list(burst_infos.keys())
+    polarizations = list(burst_infos[swaths[0]].keys())
+    for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
+        image_number = i + 1
+        burst_infos = burst_infos[swath][polarization]
+        measurement_name = get_measurement_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, 1)
+        bursts_to_tiff(burst_infos, safe_dir / 'measurement' / measurement_name, work_dir)
+        merge_calibration(burst_infos, image_number, safe_dir)
 
 
 def main() -> None:
