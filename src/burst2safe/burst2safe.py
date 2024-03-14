@@ -155,13 +155,12 @@ def create_product_name(burst_infos: Iterable[BurstInfo]) -> str:
     return product_name
 
 
-def get_measurement_name(product_name: str, swath: str, pol: str, image_number: int) -> str:
+def get_swath_name(product_name: str, swath: str, pol: str, image_number: int) -> str:
     """Create a measurement name for given dataset."""
+    # TODO: start, stop should be coming from the burst data since they will be diferent per swath
     platfrom, _, _, _, _, start, stop, orbit, data_take, _ = product_name.lower().split('_')
-    product_name = (
-        f'{platfrom}-{swath.lower()}-slc-{pol.lower()}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}.tiff'
-    )
-    return product_name
+    swath_name = f'{platfrom}-{swath.lower()}-slc-{pol.lower()}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}'
+    return swath_name
 
 
 def get_subxml_from_burst_metadata(metadata_path: str, xml_type: str, subswath: str = None, polarization: str = None):
@@ -332,11 +331,12 @@ def prep_info(burst_infos: Iterable[BurstInfo], data_type: str):
     return element, min_anx, max_anx, start_line
 
 
-def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path) -> None:
+def merge_calibration(burst_infos: Iterable[BurstInfo], out_path: Path) -> None:
     """Merge calibration data into a single file."""
     calibration, min_anx, max_anx, start_line = prep_info(burst_infos, 'calibration')
     new_calibration = ET.Element('calibration')
 
+    image_number = int(out_path.with_suffix('').name.split('-')[-1])
     ads_header = update_ads_header(calibration.find('adsHeader'), min_anx, max_anx, image_number)
     new_calibration.append(ads_header)
 
@@ -347,16 +347,15 @@ def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_
     new_cal_vectors = filter_elements_by_az_time(cal_vectors, min_anx, max_anx, start_line)
     new_calibration.append(new_cal_vectors)
 
-    out_name = f'calibration_{burst_infos[0].swath}_{burst_infos[0].polarization}_{image_number:03d}.xml'
-    new_calibration_path = safe_dir / 'annotation' / 'calibration' / out_name
-    write_xml(new_calibration, new_calibration_path)
+    write_xml(new_calibration, out_path)
 
 
-def merge_noise(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path):
+def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     """Merge noise data into a single file."""
     noise, min_anx, max_anx, start_line = prep_info(burst_infos, 'noise')
     new_noise = ET.Element('noise')
 
+    image_number = int(out_path.with_suffix('').name.split('-')[-1])
     ads_header = update_ads_header(noise.find('adsHeader'), min_anx, max_anx, image_number)
     new_noise.append(ads_header)
 
@@ -374,19 +373,17 @@ def merge_noise(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: P
     last_index += 1  # add one to make it inclusive
 
     new_noise_az.find('lastAzimuthLine').text = str(lines[last_index - 1])
-    
+
     line_element.text = ' '.join([str(x) for x in lines[first_index:last_index]])
     line_element.set('count', str(last_index - first_index))
-    
+
     az_lut_element = new_noise_az.find('noiseAzimuthLut')
     az_lut_element.text = ' '.join(az_lut_element.text.split(' ')[first_index:last_index])
     az_lut_element.set('count', str(last_index - first_index))
 
     new_noise.append(new_noise_az)
 
-    out_name = f'noise_{burst_infos[0].swath}_{burst_infos[0].polarization}_{image_number:03d}.xml'
-    new_noise_path = safe_dir / 'annotation' / 'calibration' / out_name
-    write_xml(new_noise, new_noise_path)
+    write_xml(new_noise, out_path)
 
 
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
@@ -409,10 +406,16 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
         image_number = i + 1
         burst_infos = burst_infos[swath][polarization]
-        measurement_name = get_measurement_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, 1)
-        bursts_to_tiff(burst_infos, safe_dir / 'measurement' / measurement_name, work_dir)
-        merge_calibration(burst_infos, image_number, safe_dir)
-        merge_noise(burst_infos, image_number, safe_dir)
+        swath_name = get_swath_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, image_number)
+
+        burst_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
+        bursts_to_tiff(burst_infos, burst_name, work_dir)
+
+        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.tiff'
+        merge_calibration(burst_infos, calibration_name)
+
+        noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.tiff'
+        merge_noise(burst_infos, noise_name)
 
 
 def main() -> None:
