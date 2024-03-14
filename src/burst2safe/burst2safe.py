@@ -1,4 +1,5 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
+import warnings
 from argparse import ArgumentParser
 from copy import deepcopy
 from dataclasses import dataclass
@@ -9,10 +10,12 @@ from typing import Iterable, List, Optional
 
 import asf_search
 import lxml.etree as ET
+import numpy as np
 from osgeo import gdal
 
 
 gdal.UseExceptions()
+warnings.filterwarnings('ignore')
 
 
 @dataclass
@@ -282,8 +285,8 @@ def filter_elements_by_az_time(
     element: ET.Element,
     min_anx: datetime,
     max_anx: datetime,
-    buffer: Optional[timedelta] = timedelta(seconds=3),
     start_line: Optional[int] = None,
+    buffer: Optional[timedelta] = timedelta(seconds=3),
 ) -> List[ET.Element]:
     """Filter elements by azimuth time. Optionally adjust line number."""
 
@@ -304,7 +307,8 @@ def filter_elements_by_az_time(
 
     if start_line:
         for element in filtered_elements:
-            element.find('line').text = str(int(element.find('line').text) - start_line)
+            standard_line = int(element.find('line').text)
+            element.find('line').text = str(standard_line - start_line)
 
     new_element = ET.Element(list_name)
     for element in filtered_elements:
@@ -314,8 +318,7 @@ def filter_elements_by_az_time(
     return new_element
 
 
-def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path) -> None:
-    """Merge calibration data into a single file."""
+def prep_info(burst_infos: Iterable[BurstInfo], data_type: str):
     metadata_paths = list(dict.fromkeys([x.metadata_path for x in burst_infos]))
     if len(metadata_paths) != 1:
         raise UserWarning('Multiple metadata files not yet supported.')
@@ -325,8 +328,14 @@ def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_
     min_anx = min([x.start_utc for x in burst_infos])
     max_anx = max([x.stop_utc for x in burst_infos])
 
+    element = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, data_type, swath, pol)
+    return element, min_anx, max_anx, start_line
+
+
+def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path) -> None:
+    """Merge calibration data into a single file."""
+    calibration, min_anx, max_anx, start_line = prep_info(burst_infos, 'calibration')
     new_calibration = ET.Element('calibration')
-    calibration = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'calibration', swath, pol)
 
     ads_header = update_ads_header(calibration.find('adsHeader'), min_anx, max_anx, image_number)
     new_calibration.append(ads_header)
@@ -338,8 +347,46 @@ def merge_calibration(burst_infos: Iterable[BurstInfo], image_number: int, safe_
     new_cal_vectors = filter_elements_by_az_time(cal_vectors, min_anx, max_anx, start_line)
     new_calibration.append(new_cal_vectors)
 
-    new_calibration_path = safe_dir / 'annotation' / 'calibration' / f'{swath}_{pol}_{image_number:03d}.xml'
+    out_name = f'calibration_{burst_infos[0].swath}_{burst_infos[0].polarization}_{image_number:03d}.xml'
+    new_calibration_path = safe_dir / 'annotation' / 'calibration' / out_name
     write_xml(new_calibration, new_calibration_path)
+
+
+def merge_noise(burst_infos: Iterable[BurstInfo], image_number: int, safe_dir: Path):
+    """Merge noise data into a single file."""
+    noise, min_anx, max_anx, start_line = prep_info(burst_infos, 'noise')
+    new_noise = ET.Element('noise')
+
+    ads_header = update_ads_header(noise.find('adsHeader'), min_anx, max_anx, image_number)
+    new_noise.append(ads_header)
+
+    noise_rg = noise.find('noiseRangeVectorList')
+    new_noise_rg = filter_elements_by_az_time(noise_rg, min_anx, max_anx, start_line)
+    new_noise.append(new_noise_rg)
+
+    new_noise_az = deepcopy(noise.findall('noiseAzimuthVectorList/noiseAzimuthVector'))[0]
+    line_element = new_noise_az.find('line')
+
+    lines = np.array([int(x) for x in line_element.text.split(' ')])
+    lines -= start_line
+    first_index = np.where(lines == lines[lines <= 0].max())[0][0]
+    last_index = np.where(lines == lines[lines >= ((burst_infos[0].length * len(burst_infos)) - 1)].min())[0][0]
+    last_index += 1  # add one to make it inclusive
+
+    new_noise_az.find('lastAzimuthLine').text = str(lines[last_index - 1])
+    
+    line_element.text = ' '.join([str(x) for x in lines[first_index:last_index]])
+    line_element.set('count', str(last_index - first_index))
+    
+    az_lut_element = new_noise_az.find('noiseAzimuthLut')
+    az_lut_element.text = ' '.join(az_lut_element.text.split(' ')[first_index:last_index])
+    az_lut_element.set('count', str(last_index - first_index))
+
+    new_noise.append(new_noise_az)
+
+    out_name = f'noise_{burst_infos[0].swath}_{burst_infos[0].polarization}_{image_number:03d}.xml'
+    new_noise_path = safe_dir / 'annotation' / 'calibration' / out_name
+    write_xml(new_noise, new_noise_path)
 
 
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
@@ -365,6 +412,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
         measurement_name = get_measurement_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, 1)
         bursts_to_tiff(burst_infos, safe_dir / 'measurement' / measurement_name, work_dir)
         merge_calibration(burst_infos, image_number, safe_dir)
+        merge_noise(burst_infos, image_number, safe_dir)
 
 
 def main() -> None:
