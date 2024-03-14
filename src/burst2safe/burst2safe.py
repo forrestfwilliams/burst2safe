@@ -254,12 +254,10 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
     safe_dir = work_dir / product_name
     annotations_dir = safe_dir / 'annotation'
     calibration_dir = annotations_dir / 'calibration'
-    noise_dir = annotations_dir / 'noise'
     rfi_dir = annotations_dir / 'rfi'
     measurements_dir = safe_dir / 'measurement'
 
     calibration_dir.mkdir(parents=True, exist_ok=True)
-    noise_dir.mkdir(parents=True, exist_ok=True)
     rfi_dir.mkdir(parents=True, exist_ok=True)
     measurements_dir.mkdir(parents=True, exist_ok=True)
     return safe_dir
@@ -289,8 +287,8 @@ def filter_elements_by_az_time(
 ) -> List[ET.Element]:
     """Filter elements by azimuth time. Optionally adjust line number."""
 
-    min_anx_bound = min_anx - timedelta(seconds=3)
-    max_anx_bound = max_anx + timedelta(seconds=3)
+    min_anx_bound = min_anx - buffer
+    max_anx_bound = max_anx + buffer
 
     list_name = element.tag
     elements = element.findall('*')
@@ -386,6 +384,45 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_noise, out_path)
 
 
+def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
+    """Merge annotation data into a single file."""
+    annotation, min_anx, max_anx, start_line = prep_info(burst_infos, 'product')
+    new_annotation = ET.Element('product')
+
+    image_number = int(out_path.with_suffix('').name.split('-')[-1])
+    ads_header = update_ads_header(annotation.find('adsHeader'), min_anx, max_anx, image_number)
+    new_annotation.append(ads_header)
+
+    quality = deepcopy(annotation.find('qualityInformation'))
+    new_annotation.append(quality)
+
+    # TODO: generalAnnotation
+    # TODO: imageAnnotation
+
+    dop_centroid_list = annotation.find('dopplerCentroid/dcEstimateList')
+    new_dop_centroid_list = filter_elements_by_az_time(dop_centroid_list, min_anx, max_anx)
+    new_dop_centroid = ET.Element('dopplerCentroid')
+    new_dop_centroid.append(new_dop_centroid_list)
+    new_annotation.append(new_dop_centroid)
+
+    antenna_list = annotation.find('antennaPattern/antennaPatternList')
+    new_antenna_list = filter_elements_by_az_time(antenna_list, min_anx, max_anx)
+    new_antenna = ET.Element('antennaPattern')
+    new_antenna.append(new_antenna_list)
+    new_annotation.append(new_antenna)
+
+    swath_timing = annotation.find('swathTiming')
+    bursts = swath_timing.find('burstList')
+    new_bursts = filter_elements_by_az_time(bursts, min_anx, max_anx, buffer = timedelta(seconds=0.5))
+    new_swath_timing = ET.Element('swathTiming')
+    new_swath_timing.append(deepcopy(swath_timing.find('linesPerBurst')))
+    new_swath_timing.append(deepcopy(swath_timing.find('samplesPerBurst')))
+    new_swath_timing.append(new_bursts)
+    new_annotation.append(new_swath_timing)
+
+    write_xml(new_annotation, out_path)
+
+
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
     work_dir = optional_wd(work_dir)
     burst_infos = gather_burst_infos(granules, work_dir)
@@ -409,13 +446,16 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
         swath_name = get_swath_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, image_number)
 
         burst_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
-        bursts_to_tiff(burst_infos, burst_name, work_dir)
+        # bursts_to_tiff(burst_infos, burst_name, work_dir)
 
-        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.tiff'
+        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.xml'
         merge_calibration(burst_infos, calibration_name)
 
-        noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.tiff'
+        noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.xml'
         merge_noise(burst_infos, noise_name)
+
+        annotation_name = safe_dir / 'annotation' / f'{swath_name}.xml'
+        merge_annotation(burst_infos, annotation_name)
 
 
 def main() -> None:
