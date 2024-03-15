@@ -52,6 +52,7 @@ class BurstInfo:
         annotation = get_subxml_from_burst_metadata(self.metadata_path, 'product', self.swath, self.polarization)
         start_utc_str = annotation.findall('.//burst')[self.burst_index].find('azimuthTime').text
         self.start_utc = datetime.fromisoformat(start_utc_str)
+        # TODO: this is slightly wrong, but it's close enough for now
         azimuth_time_interval = float(annotation.find('.//azimuthTimeInterval').text)
         self.stop_utc = self.start_utc + (self.length * timedelta(seconds=azimuth_time_interval))
 
@@ -278,7 +279,7 @@ def update_ads_header(ads_header: ET.Element, start_utc: datetime, stop_utc: dat
     return new_ads_header
 
 
-def filter_elements_by_az_time(
+def filter_elements_by_time(
     element: ET.Element,
     min_anx: datetime,
     max_anx: datetime,
@@ -296,9 +297,16 @@ def filter_elements_by_az_time(
     if len(names) != 1:
         raise ValueError('Element must contain only one type of subelement.')
 
+    if 'azimuthTime' in [x.tag for x in elements[0].iter()]:
+        time_field = 'azimuthTime'
+    elif 'time' in [x.tag for x in elements[0].iter()]:
+        time_field = 'time'
+    else:
+        raise ValueError('No time field found in element.')
+
     filtered_elements = []
     for element in elements:
-        azimuth_time = datetime.fromisoformat(element.find('azimuthTime').text)
+        azimuth_time = datetime.fromisoformat(element.find(time_field).text)
         if min_anx_bound < azimuth_time < max_anx_bound:
             filtered_elements.append(deepcopy(element))
 
@@ -342,7 +350,7 @@ def merge_calibration(burst_infos: Iterable[BurstInfo], out_path: Path) -> None:
     new_calibration.append(calibration_information)
 
     cal_vectors = calibration.find('calibrationVectorList')
-    new_cal_vectors = filter_elements_by_az_time(cal_vectors, min_anx, max_anx, start_line)
+    new_cal_vectors = filter_elements_by_time(cal_vectors, min_anx, max_anx, start_line)
     new_calibration.append(new_cal_vectors)
 
     write_xml(new_calibration, out_path)
@@ -358,7 +366,7 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     new_noise.append(ads_header)
 
     noise_rg = noise.find('noiseRangeVectorList')
-    new_noise_rg = filter_elements_by_az_time(noise_rg, min_anx, max_anx, start_line)
+    new_noise_rg = filter_elements_by_time(noise_rg, min_anx, max_anx, start_line)
     new_noise.append(new_noise_rg)
 
     new_noise_az = deepcopy(noise.findall('noiseAzimuthVectorList/noiseAzimuthVector'))[0]
@@ -384,6 +392,15 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_noise, out_path)
 
 
+def create_empty_xml_list(name: str) -> ET.Element:
+    """Create an empty XML list with a given name."""
+    element = ET.Element(name)
+    list_element = ET.Element(f'{name}List')
+    list_element.set('count', '0')
+    element.append(list_element)
+    return element
+
+
 def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     """Merge annotation data into a single file."""
     annotation, min_anx, max_anx, start_line = prep_info(burst_infos, 'product')
@@ -396,29 +413,100 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     quality = deepcopy(annotation.find('qualityInformation'))
     new_annotation.append(quality)
 
-    # TODO: generalAnnotation
-    # TODO: imageAnnotation
+    xml_lists = {}
+    for list_name in ['orbitList', 'attitudeList', 'noiseList', 'terrainHeightList', 'azimuthFmRateList']:
+        if list_name == 'orbitList':
+            buffer = 30
+        else:
+            buffer = 5
+
+        xml_list = annotation.find(f'generalAnnotation/{list_name}')
+        new_xml_list = filter_elements_by_time(xml_list, min_anx, max_anx, buffer=timedelta(seconds=buffer))
+        xml_lists[list_name] = new_xml_list
+
+    new_general = ET.Element('generalAnnotation')
+    new_general.append(deepcopy(annotation.find('generalAnnotation/productInformation')))
+    new_general.append(deepcopy(annotation.find('generalAnnotation/downlinkInformationList')))
+    new_general.append(xml_lists['orbitList'])
+    new_general.append(xml_lists['attitudeList'])
+    new_general.append(deepcopy(annotation.find('generalAnnotation/rawDataAnalysisList')))
+    new_general.append(deepcopy(annotation.find('generalAnnotation/replicaInformationList')))
+    new_general.append(xml_lists['noiseList'])
+    new_general.append(xml_lists['terrainHeightList'])
+    new_general.append(xml_lists['azimuthFmRateList'])
+    new_annotation.append(new_general)
+
+    new_image_info = ET.Element('imageInformation')
+    start_time = ET.SubElement(new_image_info, 'productFirstLineUtcTime')
+    start_time.text = min_anx.isoformat()
+    stop_time = ET.SubElement(new_image_info, 'productLastLineUtcTime')
+    stop_time.text = max_anx.isoformat()
+    new_image_info.append(deepcopy(annotation.find('imageAnnotation/imageInformation/ascendingNodeTime')))
+    new_image_info.append(deepcopy(annotation.find('imageAnnotation/imageInformation/anchorTime')))
+    composition = ET.SubElement(new_image_info, 'productComposition')
+    composition.text = 'Assembled'
+    slice_number = ET.SubElement(new_image_info, 'sliceNumber')
+    slice_number.text = '0'
+    new_image_info.append(create_empty_xml_list('sliceList'))
+    copy_list = [
+        'slantRangeTime',
+        'pixelValue',
+        'outputPixels',
+        'rangePixelSpacing',
+        'azimuthPixelSpacing',
+        'azimuthTimeInterval',
+        'azimuthFrequency',
+        'numberOfSamples',
+    ]
+    for element_name in copy_list:
+        new_image_info.append(deepcopy(annotation.find(f'imageAnnotation/imageInformation/{element_name}')))
+
+    n_lines = ET.SubElement(new_image_info, 'numberOfLines')
+    n_lines.text = str(burst_infos[0].length * len(burst_infos))
+
+    copy_list = ['zeroDopMinusAcqTime', 'incidenceAngleMidSwath']
+    for element_name in copy_list:
+        new_image_info.append(deepcopy(annotation.find(f'imageAnnotation/imageInformation/{element_name}')))
+
+    # TODO: recalculate imageStatistics
+
+    new_image = ET.Element('imageAnnotation')
+    new_image.append(new_image_info)
+    new_image.append(deepcopy(annotation.find('imageAnnotation/processingInformation')))
+
+    new_annotation.append(new_image)
+
 
     dop_centroid_list = annotation.find('dopplerCentroid/dcEstimateList')
-    new_dop_centroid_list = filter_elements_by_az_time(dop_centroid_list, min_anx, max_anx)
+    new_dop_centroid_list = filter_elements_by_time(dop_centroid_list, min_anx, max_anx)
     new_dop_centroid = ET.Element('dopplerCentroid')
     new_dop_centroid.append(new_dop_centroid_list)
     new_annotation.append(new_dop_centroid)
 
     antenna_list = annotation.find('antennaPattern/antennaPatternList')
-    new_antenna_list = filter_elements_by_az_time(antenna_list, min_anx, max_anx)
+    new_antenna_list = filter_elements_by_time(antenna_list, min_anx, max_anx)
     new_antenna = ET.Element('antennaPattern')
     new_antenna.append(new_antenna_list)
     new_annotation.append(new_antenna)
 
     swath_timing = annotation.find('swathTiming')
     bursts = swath_timing.find('burstList')
-    new_bursts = filter_elements_by_az_time(bursts, min_anx, max_anx, buffer = timedelta(seconds=0.5))
+    new_bursts = filter_elements_by_time(bursts, min_anx, max_anx, buffer=timedelta(seconds=0.5))
     new_swath_timing = ET.Element('swathTiming')
     new_swath_timing.append(deepcopy(swath_timing.find('linesPerBurst')))
     new_swath_timing.append(deepcopy(swath_timing.find('samplesPerBurst')))
     new_swath_timing.append(new_bursts)
     new_annotation.append(new_swath_timing)
+
+    gcp_list = annotation.find('geolocationGrid/geolocationGridPointList')
+    new_gcp_list = filter_elements_by_time(gcp_list, min_anx, max_anx, start_line)
+    new_gcp = ET.Element('geolocationGrid')
+    new_gcp.append(new_gcp_list)
+    new_annotation.append(new_gcp)
+
+    # Both of these fields are not used for SLCs, only GRDs
+    new_annotation.append(create_empty_xml_list('coordinateConversion'))
+    new_annotation.append(create_empty_xml_list('swathMerging'))
 
     write_xml(new_annotation, out_path)
 
