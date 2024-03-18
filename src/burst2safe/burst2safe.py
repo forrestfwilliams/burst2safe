@@ -1,4 +1,5 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
+import hashlib
 import warnings
 from argparse import ArgumentParser
 from copy import deepcopy
@@ -156,11 +157,15 @@ def create_product_name(burst_infos: Iterable[BurstInfo]) -> str:
     return product_name
 
 
-def get_swath_name(product_name: str, swath: str, pol: str, image_number: int) -> str:
+def get_swath_name(product_name: str, burst_infos: Iterable[BurstInfo], image_number: int) -> str:
     """Create a measurement name for given dataset."""
-    # TODO: start, stop should be coming from the burst data since they will be diferent per swath
-    platfrom, _, _, _, _, start, stop, orbit, data_take, _ = product_name.lower().split('_')
-    swath_name = f'{platfrom}-{swath.lower()}-slc-{pol.lower()}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}'
+    swath = burst_infos[0].swath.lower()
+    pol = burst_infos[0].polarization.lower()
+    start = datetime.strftime(min([x.start_utc for x in burst_infos]), '%Y%m%dt%H%M%S')
+    stop = datetime.strftime(max([x.stop_utc for x in burst_infos]), '%Y%m%dt%H%M%S')
+
+    platfrom, _, _, _, _, _, _, orbit, data_take, _ = product_name.lower().split('_')
+    swath_name = f'{platfrom}-{swath}-slc-{pol}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}'
     return swath_name
 
 
@@ -180,7 +185,7 @@ def get_subxml_from_burst_metadata(metadata_path: str, xml_type: str, subswath: 
         metadata = ET.parse(metadata_file).getroot()
 
     if xml_type == 'manifest':
-        name = 'manifest.xml'
+        name = 'manifest.safe'
         desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
         return name, desired_metadata
 
@@ -268,6 +273,11 @@ def write_xml(element: ET.Element, out_path: Path) -> None:
     tree = ET.ElementTree(element)
     ET.indent(tree, space='  ')
     tree.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def prettyprint(element, **kwargs):
+    xml = ET.tostring(element, pretty_print=True, **kwargs)
+    print(xml.decode(), end='')
 
 
 def update_ads_header(ads_header: ET.Element, start_utc: datetime, stop_utc: datetime, image_number: int) -> ET.Element:
@@ -476,7 +486,6 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
 
     new_annotation.append(new_image)
 
-
     dop_centroid_list = annotation.find('dopplerCentroid/dcEstimateList')
     new_dop_centroid_list = filter_elements_by_time(dop_centroid_list, min_anx, max_anx)
     new_dop_centroid = ET.Element('dopplerCentroid')
@@ -511,6 +520,119 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_annotation, out_path)
 
 
+def create_content_units(asset_list: List[Path], schema: str) -> ET.Element:
+    """Create a content unit for the SAFE manifest."""
+    # TODO not the best way to do this
+    metadata = []
+    asset_type = 'product'
+    content_unit = ET.Element(f'{schema}contentUnit')
+    content_unit.set('unitType', 'Metadata Unit')
+    content_unit.set('repID', f's1level1{asset_type.capitalize()}')
+    ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=f'{asset_type}{asset_list[0].suffix}')
+    return content_unit
+
+
+def create_manifest_components(item_path: Path, item_type: str):
+    """Create the components of the manifest file."""
+    if item_type in ['product', 'noise', 'calibration', 'rfi']:
+        unit_type = 'Metadata Unit'
+        mime_type = 'text/xml'
+        create_metadata_element = True
+    elif item_type == 'measurement':
+        unit_type = 'Measurement Data Unit'
+        mime_type = 'application/octet-stream'
+        create_metadata_element = False
+    else:
+        raise ValueError(f'Item type {item_type} not recognized.')
+
+    schema = '{urn:ccsds:schema:xfdu:1}'
+    rep_id = f's1Level1{item_type.capitalize()}Schema'
+    simple_name = item_path.with_suffix('').name.replace('-', '')
+    if item_type == 'product':
+        simple_name = f'product{simple_name}'
+
+    content_unit = ET.Element(f'{schema}contentUnit')
+    content_unit.set('unitType', unit_type)
+    content_unit.set('repID', rep_id)
+    ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
+
+    if create_metadata_element:
+        metadata_object = ET.Element('metadataObject')
+        metadata_object.set('ID', f'{simple_name}Annotation')
+        metadata_object.set('classification', 'DESCRIPTION')
+        metadata_object.set('category', 'DMD')
+        ET.SubElement(metadata_object, 'dataObjectPointer', dataObjectID=simple_name)
+    else:
+        metadata_object = None
+
+    with open(item_path, 'rb') as f:
+        item_bytes = f.read()
+        item_length = len(item_bytes)
+        item_md5 = hashlib.md5(item_bytes).hexdigest()
+
+    safe_index = [i for i, x in enumerate(item_path.parts) if 'SAFE' in x][-1]
+    safe_path = Path(*item_path.parts[: safe_index + 1])
+    relative_path = item_path.relative_to(safe_path)
+
+    data_object = ET.Element('dataObject')
+    data_object.set('ID', simple_name)
+    data_object.set('repID', rep_id)
+    byte_stream = ET.SubElement(data_object, 'byteStream')
+    byte_stream.set('mimeType', mime_type)
+    byte_stream.set('size', str(item_length))
+    file_location = ET.SubElement(byte_stream, 'fileLocation')
+    file_location.set('locatorType', 'URL')
+    file_location.set('href', f'./{relative_path}')
+    checksum = ET.SubElement(byte_stream, 'checksum')
+    checksum.set('checksumName', 'MD5')
+    checksum.text = item_md5
+
+    return content_unit, metadata_object, data_object
+
+
+def create_manifest(template_manifset: ET.Element, assets: dict, out_path: Path) -> None:
+    """Create a manifest file for the SAFE product."""
+
+    schema = '{urn:ccsds:schema:xfdu:1}'
+    manifest = deepcopy(template_manifset)
+    sets = {
+        f'informationPackageMap/{schema}contentUnit': 'content_unit',
+        'metadataSection': 'metadata_object',
+        'dataObjectSection': 'data_object',
+    }
+    metadata_ids_keep = [
+        'processing',
+        'platform',
+        'measurementOrbitReference',
+        'generalProductInformation',
+        'acquisitionPeriod',
+        'measurementFrameSet',
+    ]
+    copied_metadata = [deepcopy(x) for x in manifest.find('metadataSection') if x.get('ID') in metadata_ids_keep]
+
+    for element_name, asset_type in sets.items():
+        element = manifest.find(element_name)
+        for child in element:
+            element.remove(child)
+
+        for item in assets[asset_type]:
+            element.append(item)
+
+    content_section = manifest.find(f'informationPackageMap/{schema}contentUnit')
+    for item in assets['content_unit_measurement']:
+        content_section.append(item)
+
+    metadata_section = manifest.find('metadataSection')
+    for item in copied_metadata:
+        metadata_section.append(item)
+
+    data_section = manifest.find('dataObjectSection')
+    for item in assets['data_object_measurement']:
+        data_section.append(item)
+
+    write_xml(manifest, out_path)
+
+
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
     work_dir = optional_wd(work_dir)
     burst_infos = gather_burst_infos(granules, work_dir)
@@ -528,22 +650,48 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     burst_infos = sort_burst_infos(burst_infos)
     swaths = list(burst_infos.keys())
     polarizations = list(burst_infos[swaths[0]].keys())
+    manifest_data = {
+        'content_unit': [],
+        'metadata_object': [],
+        'data_object': [],
+        'content_unit_measurement': [],
+        'data_object_measurement': [],
+    }
     for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
         image_number = i + 1
         burst_infos = burst_infos[swath][polarization]
-        swath_name = get_swath_name(product_name, burst_infos[0].swath, burst_infos[0].polarization, image_number)
+        swath_name = get_swath_name(product_name, burst_infos, image_number)
 
-        burst_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
-        # bursts_to_tiff(burst_infos, burst_name, work_dir)
+        measurement_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
+        bursts_to_tiff(burst_infos, measurement_name, work_dir)
+        content, _, data = create_manifest_components(measurement_name, 'measurement')
+        manifest_data['content_unit_measurement'].append(content)
+        manifest_data['data_object_measurement'].append(data)
 
-        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.xml'
-        merge_calibration(burst_infos, calibration_name)
+        product_name = safe_dir / 'annotation' / f'{swath_name}.xml'
+        merge_annotation(burst_infos, product_name)
+        content, metadata, data = create_manifest_components(product_name, 'product')
+        manifest_data['content_unit'].append(content)
+        manifest_data['metadata_object'].append(metadata)
+        manifest_data['data_object'].append(data)
 
         noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.xml'
         merge_noise(burst_infos, noise_name)
+        content, metadata, data = create_manifest_components(noise_name, 'noise')
+        manifest_data['content_unit'].append(content)
+        manifest_data['metadata_object'].append(metadata)
+        manifest_data['data_object'].append(data)
 
-        annotation_name = safe_dir / 'annotation' / f'{swath_name}.xml'
-        merge_annotation(burst_infos, annotation_name)
+        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.xml'
+        merge_calibration(burst_infos, calibration_name)
+        content, metadata, data = create_manifest_components(calibration_name, 'calibration')
+        manifest_data['content_unit'].append(content)
+        manifest_data['metadata_object'].append(metadata)
+        manifest_data['data_object'].append(data)
+
+    manifest_name = safe_dir / 'manifest.safe'
+    template_manifest = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'manifest')[1]
+    create_manifest(template_manifest, manifest_data, manifest_name)
 
 
 def main() -> None:
