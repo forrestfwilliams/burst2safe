@@ -1,5 +1,7 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
 import hashlib
+import os
+import shutil
 import warnings
 from argparse import ArgumentParser
 from copy import deepcopy
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 import asf_search
+import crcmod
 import lxml.etree as ET
 import numpy as np
 from osgeo import gdal
@@ -144,7 +147,7 @@ def sort_burst_infos(burst_info_list):
     return burst_infos
 
 
-def create_product_name(burst_infos: Iterable[BurstInfo]) -> str:
+def create_product_name(burst_infos: Iterable[BurstInfo], unique_id: Optional[str] = None) -> str:
     """Create a product name for the SAFE file."""
     platform, beam_mode, product_type = burst_infos[0].slc_granule.split('_')[:3]
     product_info = f'1SS{burst_infos[0].polarization[0]}'
@@ -152,8 +155,9 @@ def create_product_name(burst_infos: Iterable[BurstInfo]) -> str:
     max_date = max([x.date for x in burst_infos]).strftime('%Y%m%dT%H%M%S')
     absolute_orbit = f'{burst_infos[0].absolute_orbit:06d}'
     mission_data_take = burst_infos[0].slc_granule.split('_')[-2]
-    dummy_unique_id = '0000'
-    product_name = f'{platform}_{beam_mode}_{product_type}__{product_info}_{min_date}_{max_date}_{absolute_orbit}_{mission_data_take}_{dummy_unique_id}.SAFE'
+    if unique_id is None:
+        unique_id = '0000'
+    product_name = f'{platform}_{beam_mode}_{product_type}__{product_info}_{min_date}_{max_date}_{absolute_orbit}_{mission_data_take}_{unique_id}.SAFE'
     return product_name
 
 
@@ -520,6 +524,18 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_annotation, out_path)
 
 
+def calculate_crc16(file_path: Path):
+    """Calculate the CRC16 checksum for a file."""
+    with open(file_path, 'rb') as f:
+        data = f.read()
+    
+    # TODO: this doesn't match the ESA checksum
+    crc16 = crcmod.predefined.mkPredefinedCrcFun('crc-16')
+    crc16_value = crc16(data)
+    crc16_hex = hex(crc16_value)[2:].zfill(4).upper()
+    return crc16_hex
+
+
 def create_manifest_components(item_path: Path, item_type: str):
     """Create the components of the manifest file."""
     if item_type in ['product', 'noise', 'calibration', 'rfi']:
@@ -632,8 +648,8 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     [x.add_shape_info() for x in burst_infos]
     [x.add_start_stop_utc() for x in burst_infos]
 
-    product_name = create_product_name(burst_infos)
-    safe_dir = create_safe_directory(product_name, work_dir)
+    safe_name = create_product_name(burst_infos)
+    safe_dir = create_safe_directory(safe_name, work_dir)
 
     burst_infos = sort_burst_infos(burst_infos)
     swaths = list(burst_infos.keys())
@@ -648,7 +664,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
         image_number = i + 1
         burst_infos = burst_infos[swath][polarization]
-        swath_name = get_swath_name(product_name, burst_infos, image_number)
+        swath_name = get_swath_name(safe_name, burst_infos, image_number)
 
         measurement_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
         bursts_to_tiff(burst_infos, measurement_name, work_dir)
@@ -680,6 +696,12 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     manifest_name = safe_dir / 'manifest.safe'
     template_manifest = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'manifest')[1]
     create_manifest(template_manifest, manifest_data, manifest_name)
+    
+    crc16 = calculate_crc16(manifest_name)
+    new_safe_name = safe_name.replace('0000', crc16)
+    if Path(new_safe_name).exists():
+        shutil.rmtree(new_safe_name)
+    os.rename(safe_name, new_safe_name)
 
 
 def main() -> None:
