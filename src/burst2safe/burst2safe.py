@@ -520,18 +520,6 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_annotation, out_path)
 
 
-def create_content_units(asset_list: List[Path], schema: str) -> ET.Element:
-    """Create a content unit for the SAFE manifest."""
-    # TODO not the best way to do this
-    metadata = []
-    asset_type = 'product'
-    content_unit = ET.Element(f'{schema}contentUnit')
-    content_unit.set('unitType', 'Metadata Unit')
-    content_unit.set('repID', f's1level1{asset_type.capitalize()}')
-    ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=f'{asset_type}{asset_list[0].suffix}')
-    return content_unit
-
-
 def create_manifest_components(item_path: Path, item_type: str):
     """Create the components of the manifest file."""
     if item_type in ['product', 'noise', 'calibration', 'rfi']:
