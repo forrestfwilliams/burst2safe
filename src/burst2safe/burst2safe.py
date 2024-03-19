@@ -270,6 +270,9 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
     calibration_dir.mkdir(parents=True, exist_ok=True)
     rfi_dir.mkdir(parents=True, exist_ok=True)
     measurements_dir.mkdir(parents=True, exist_ok=True)
+
+    xsd_dir = Path(__file__).parent / 'data'
+    shutil.copytree(xsd_dir, safe_dir / 'support')
     return safe_dir
 
 
