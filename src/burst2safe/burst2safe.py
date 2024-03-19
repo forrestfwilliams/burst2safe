@@ -400,8 +400,13 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     az_lut_element = new_noise_az.find('noiseAzimuthLut')
     az_lut_element.text = ' '.join(az_lut_element.text.split(' ')[first_index:last_index])
     az_lut_element.set('count', str(last_index - first_index))
+    
+    # TODO: will there sometime be more than one noiseAzimuthVector?
+    new_noise_az_list = ET.Element('noiseAzimuthVectorList')
+    new_noise_az_list.set('count', '1')
+    new_noise_az_list.append(new_noise_az)
 
-    new_noise.append(new_noise_az)
+    new_noise.append(new_noise_az_list)
 
     write_xml(new_noise, out_path)
 
