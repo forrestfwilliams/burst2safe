@@ -1,6 +1,6 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
 import hashlib
-import os
+# import os
 import shutil
 import warnings
 from argparse import ArgumentParser
@@ -663,7 +663,6 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
 
     [x.add_shape_info() for x in burst_infos]
     [x.add_start_stop_utc() for x in burst_infos]
-    breakpoint()
 
     safe_name = create_product_name(burst_infos)
     safe_dir = create_safe_directory(safe_name, work_dir)
