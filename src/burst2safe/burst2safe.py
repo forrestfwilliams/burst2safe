@@ -302,6 +302,7 @@ def filter_elements_by_time(
     max_anx: datetime,
     start_line: Optional[int] = None,
     buffer: Optional[timedelta] = timedelta(seconds=3),
+    line_bounds: Optional[tuple[float, float]] = None,
 ) -> List[ET.Element]:
     """Filter elements by azimuth time. Optionally adjust line number."""
 
@@ -334,7 +335,11 @@ def filter_elements_by_time(
 
     new_element = ET.Element(list_name)
     for element in filtered_elements:
-        new_element.append(element)
+        if line_bounds is None:
+            new_element.append(element)
+        else:
+            if line_bounds[0] <= int(element.find('line').text) <= line_bounds[1]:
+                new_element.append(element)
     new_element.set('count', str(len(filtered_elements)))
 
     return new_element
@@ -403,7 +408,7 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     az_lut_element = new_noise_az.find('noiseAzimuthLut')
     az_lut_element.text = ' '.join(az_lut_element.text.split(' ')[first_index:last_index])
     az_lut_element.set('count', str(last_index - first_index))
-    
+
     # TODO: will there sometime be more than one noiseAzimuthVector?
     new_noise_az_list = ET.Element('noiseAzimuthVectorList')
     new_noise_az_list.set('count', '1')
@@ -414,16 +419,16 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     write_xml(new_noise, out_path)
 
 
-def create_empty_xml_list(name: str) -> ET.Element:
+def create_empty_xml_list(name: str, sub_name: Optional[str] = None) -> ET.Element:
     """Create an empty XML list with a given name."""
     element = ET.Element(name)
-    list_element = ET.Element(f'{name}List')
+    list_name = f'{name}List' if sub_name is None else sub_name
+    list_element = ET.SubElement(element, list_name)
     list_element.set('count', '0')
-    element.append(list_element)
     return element
 
 
-def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
+def merge_product(burst_infos: Iterable[BurstInfo], out_path: Path):
     """Merge annotation data into a single file."""
     annotation, min_anx, max_anx, start_line = prep_info(burst_infos, 'product')
     new_annotation = ET.Element('product')
@@ -469,7 +474,8 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     composition.text = 'Assembled'
     slice_number = ET.SubElement(new_image_info, 'sliceNumber')
     slice_number.text = '0'
-    new_image_info.append(create_empty_xml_list('sliceList'))
+    slice_list = ET.SubElement(new_image_info, 'sliceList')
+    slice_list.set('count', '0')
     copy_list = [
         'slantRangeTime',
         'pixelValue',
@@ -486,7 +492,7 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     n_lines = ET.SubElement(new_image_info, 'numberOfLines')
     n_lines.text = str(burst_infos[0].length * len(burst_infos))
 
-    copy_list = ['zeroDopMinusAcqTime', 'incidenceAngleMidSwath']
+    copy_list = ['zeroDopMinusAcqTime', 'incidenceAngleMidSwath', 'imageStatistics']
     for element_name in copy_list:
         new_image_info.append(deepcopy(annotation.find(f'imageAnnotation/imageInformation/{element_name}')))
 
@@ -520,14 +526,16 @@ def merge_annotation(burst_infos: Iterable[BurstInfo], out_path: Path):
     new_annotation.append(new_swath_timing)
 
     gcp_list = annotation.find('geolocationGrid/geolocationGridPointList')
-    new_gcp_list = filter_elements_by_time(gcp_list, min_anx, max_anx, start_line)
+    new_gcp_list = filter_elements_by_time(
+        gcp_list, min_anx, max_anx, start_line, line_bounds=[0, burst_infos[0].length * len(burst_infos)]
+    )
     new_gcp = ET.Element('geolocationGrid')
     new_gcp.append(new_gcp_list)
     new_annotation.append(new_gcp)
 
     # Both of these fields are not used for SLCs, only GRDs
     new_annotation.append(create_empty_xml_list('coordinateConversion'))
-    new_annotation.append(create_empty_xml_list('swathMerging'))
+    new_annotation.append(create_empty_xml_list('swathMerging', 'swathMergeList'))
 
     write_xml(new_annotation, out_path)
 
@@ -536,7 +544,7 @@ def calculate_crc16(file_path: Path):
     """Calculate the CRC16 checksum for a file."""
     with open(file_path, 'rb') as f:
         data = f.read()
-    
+
     # TODO: this doesn't match the ESA checksum
     crc16 = crcmod.predefined.mkPredefinedCrcFun('crc-16')
     crc16_value = crc16(data)
@@ -655,6 +663,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
 
     [x.add_shape_info() for x in burst_infos]
     [x.add_start_stop_utc() for x in burst_infos]
+    breakpoint()
 
     safe_name = create_product_name(burst_infos)
     safe_dir = create_safe_directory(safe_name, work_dir)
@@ -681,7 +690,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
         manifest_data['data_object_measurement'].append(data)
 
         product_name = safe_dir / 'annotation' / f'{swath_name}.xml'
-        merge_annotation(burst_infos, product_name)
+        merge_product(burst_infos, product_name)
         content, metadata, data = create_manifest_components(product_name, 'product')
         manifest_data['content_unit'].append(content)
         manifest_data['metadata_object'].append(metadata)
@@ -704,7 +713,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     manifest_name = safe_dir / 'manifest.safe'
     template_manifest = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'manifest')[1]
     create_manifest(template_manifest, manifest_data, manifest_name)
-    
+
     crc16 = calculate_crc16(manifest_name)
     new_safe_name = safe_name.replace('0000', crc16)
     if Path(new_safe_name).exists():
