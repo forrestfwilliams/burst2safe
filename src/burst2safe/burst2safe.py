@@ -714,11 +714,11 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     template_manifest = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, 'manifest')[1]
     create_manifest(template_manifest, manifest_data, manifest_name)
 
-    crc16 = calculate_crc16(manifest_name)
-    new_safe_name = safe_name.replace('0000', crc16)
-    if Path(new_safe_name).exists():
-        shutil.rmtree(new_safe_name)
-    os.rename(safe_name, new_safe_name)
+    # crc16 = calculate_crc16(manifest_name)
+    # new_safe_name = safe_name.replace('0000', crc16)
+    # if Path(new_safe_name).exists():
+    #     shutil.rmtree(new_safe_name)
+    # os.rename(safe_name, new_safe_name)
 
 
 def main() -> None:
