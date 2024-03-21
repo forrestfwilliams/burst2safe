@@ -1,6 +1,5 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
 import hashlib
-# import os
 import shutil
 import warnings
 from argparse import ArgumentParser
