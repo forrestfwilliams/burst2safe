@@ -212,12 +212,19 @@ def get_subxml_from_burst_metadata(metadata_path: str, xml_type: str, subswath: 
     return desired_metadata
 
 
-def bursts_to_tiff(burst_infos: Iterable[BurstInfo], out_path: Path, work_dir: Path):
-    """Write concatenated bursts to VRT file."""
+def check_burst_group(burst_infos):
     swaths = set([x.swath for x in burst_infos])
     if len(swaths) != 1:
         raise ValueError('All bursts must be from the same swath.')
-    swath = list(swaths)[0]
+
+    polarizations = set([x.polarization for x in burst_infos])
+    if len(polarizations) != 1:
+        raise ValueError('All bursts must have the same polarization.')
+
+
+def bursts_to_tiff(burst_infos: Iterable[BurstInfo], out_path: Path, work_dir: Path):
+    """Write concatenated bursts to VRT file."""
+    swath = burst_infos[0].swath
     vrt_path = work_dir / f'{swath}.vrt'
 
     burst_length = burst_infos[0].length
@@ -272,7 +279,7 @@ def create_safe_directory(product_name: str, work_dir: Path) -> Path:
     measurements_dir.mkdir(parents=True, exist_ok=True)
 
     xsd_dir = Path(__file__).parent / 'data'
-    shutil.copytree(xsd_dir, safe_dir / 'support')
+    shutil.copytree(xsd_dir, safe_dir / 'support', dirs_exist_ok=True)
     return safe_dir
 
 
@@ -296,11 +303,45 @@ def update_ads_header(ads_header: ET.Element, start_utc: datetime, stop_utc: dat
     return new_ads_header
 
 
+def flatten(list_of_lists: List[List]):
+    return [item for sublist in list_of_lists for item in sublist]
+
+
+def drop_duplicates(input_list: List):
+    return list(dict.fromkeys(input_list))
+
+
+def remove_duplicate_elements(
+    input_elements: List[List[ET.Element]], time_field: str, slc_lengths: Optional[List[int]] = None
+):
+    for i in range(len(input_elements)):
+        if i == 0:
+            last_time = datetime.fromisoformat(input_elements[i][-1].find(time_field).text)
+            remaining_elements = [deepcopy(element) for element in input_elements[i]]
+            continue
+
+        print(i)
+        for element in input_elements[i]:
+            current_time = datetime.fromisoformat(element.find(time_field).text)
+            if current_time > last_time:
+                print(current_time)
+                new_element = deepcopy(element)
+                if slc_lengths is not None:
+                    new_line = int(new_element.find('line').text) + (i * slc_lengths[i - 1])
+                    new_element.find('line').text = str(new_line)
+                print(new_element.find('line').text)
+                remaining_elements.append(new_element)
+                last_time = current_time
+
+    return remaining_elements
+
+
 def filter_elements_by_time(
-    element: ET.Element,
+    input_elements: Iterable[ET.Element],
     min_anx: datetime,
     max_anx: datetime,
     start_line: Optional[int] = None,
+    slc_lengths: Optional[List[int]] = None,
     buffer: Optional[timedelta] = timedelta(seconds=3),
     line_bounds: Optional[tuple[float, float]] = None,
 ) -> List[ET.Element]:
@@ -309,11 +350,11 @@ def filter_elements_by_time(
     min_anx_bound = min_anx - buffer
     max_anx_bound = max_anx + buffer
 
-    list_name = element.tag
-    elements = element.findall('*')
-    names = list(set([x.tag for x in elements]))
+    list_name = input_elements[0].tag
+    elements = flatten([element.findall('*') for element in input_elements])
+    names = drop_duplicates([x.tag for x in elements])
     if len(names) != 1:
-        raise ValueError('Element must contain only one type of subelement.')
+        raise ValueError('Elements must contain only one type of subelement.')
 
     if 'azimuthTime' in [x.tag for x in elements[0].iter()]:
         time_field = 'azimuthTime'
@@ -321,6 +362,8 @@ def filter_elements_by_time(
         time_field = 'time'
     else:
         raise ValueError('No time field found in element.')
+
+    elements = remove_duplicate_elements(input_elements, time_field, slc_lengths)
 
     filtered_elements = []
     for element in elements:
@@ -347,48 +390,36 @@ def filter_elements_by_time(
 
 def prep_info(burst_infos: Iterable[BurstInfo], data_type: str):
     metadata_paths = list(dict.fromkeys([x.metadata_path for x in burst_infos]))
-    if len(metadata_paths) != 1:
-        raise UserWarning('Multiple metadata files not yet supported.')
-
     swath, pol = burst_infos[0].swath, burst_infos[0].polarization
     start_line = burst_infos[0].burst_index * burst_infos[0].length
     min_anx = min([x.start_utc for x in burst_infos])
     max_anx = max([x.stop_utc for x in burst_infos])
 
-    element = get_subxml_from_burst_metadata(burst_infos[0].metadata_path, data_type, swath, pol)
-    return element, min_anx, max_anx, start_line
+    metadata_paths = drop_duplicates([x.metadata_path for x in burst_infos])
+    elements = [get_subxml_from_burst_metadata(path, data_type, swath, pol) for path in metadata_paths]
 
+    annoations = [get_subxml_from_burst_metadata(path, 'product', swath, pol) for path in metadata_paths]
+    slc_lengths = []
+    for annotation in annoations:
+        n_bursts = int(annotation.find('.//burstList').get('count'))
+        burst_length = int(annotation.find('.//linesPerBurst').text)
+        slc_lengths.append(n_bursts * burst_length)
 
-def merge_calibration(burst_infos: Iterable[BurstInfo], out_path: Path) -> None:
-    """Merge calibration data into a single file."""
-    calibration, min_anx, max_anx, start_line = prep_info(burst_infos, 'calibration')
-    new_calibration = ET.Element('calibration')
-
-    image_number = int(out_path.with_suffix('').name.split('-')[-1])
-    ads_header = update_ads_header(calibration.find('adsHeader'), min_anx, max_anx, image_number)
-    new_calibration.append(ads_header)
-
-    calibration_information = deepcopy(calibration.find('calibrationInformation'))
-    new_calibration.append(calibration_information)
-
-    cal_vectors = calibration.find('calibrationVectorList')
-    new_cal_vectors = filter_elements_by_time(cal_vectors, min_anx, max_anx, start_line)
-    new_calibration.append(new_cal_vectors)
-
-    write_xml(new_calibration, out_path)
+    return elements, slc_lengths, min_anx, max_anx, start_line
 
 
 def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     """Merge noise data into a single file."""
-    noise, min_anx, max_anx, start_line = prep_info(burst_infos, 'noise')
+    noises, slc_lengths, min_anx, max_anx, start_line = prep_info(burst_infos, 'noise')
+    first_noise = noises[0]
     new_noise = ET.Element('noise')
 
     image_number = int(out_path.with_suffix('').name.split('-')[-1])
-    ads_header = update_ads_header(noise.find('adsHeader'), min_anx, max_anx, image_number)
+    ads_header = update_ads_header(first_noise.find('adsHeader'), min_anx, max_anx, image_number)
     new_noise.append(ads_header)
 
-    noise_rg = noise.find('noiseRangeVectorList')
-    new_noise_rg = filter_elements_by_time(noise_rg, min_anx, max_anx, start_line)
+    noise_rgs = [noise.find('noiseRangeVectorList') for noise in noises]
+    new_noise_rg = filter_elements_by_time(noise_rgs, min_anx, max_anx, start_line, slc_lengths=slc_lengths)
     new_noise.append(new_noise_rg)
 
     new_noise_az = deepcopy(noise.findall('noiseAzimuthVectorList/noiseAzimuthVector'))[0]
@@ -417,6 +448,25 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     new_noise.append(new_noise_az_list)
 
     write_xml(new_noise, out_path)
+
+
+def merge_calibration(burst_infos: Iterable[BurstInfo], out_path: Path) -> None:
+    """Merge calibration data into a single file."""
+    calibration, min_anx, max_anx, start_line = prep_info(burst_infos, 'calibration')
+    new_calibration = ET.Element('calibration')
+
+    image_number = int(out_path.with_suffix('').name.split('-')[-1])
+    ads_header = update_ads_header(calibration.find('adsHeader'), min_anx, max_anx, image_number)
+    new_calibration.append(ads_header)
+
+    calibration_information = deepcopy(calibration.find('calibrationInformation'))
+    new_calibration.append(calibration_information)
+
+    cal_vectors = calibration.find('calibrationVectorList')
+    new_cal_vectors = filter_elements_by_time(cal_vectors, min_anx, max_anx, start_line)
+    new_calibration.append(new_cal_vectors)
+
+    write_xml(new_calibration, out_path)
 
 
 def create_empty_xml_list(name: str, sub_name: Optional[str] = None) -> ET.Element:
@@ -658,6 +708,18 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     burst_infos = gather_burst_infos(granules, work_dir)
     urls = list(dict.fromkeys([x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]))
     paths = list(dict.fromkeys([x.data_path for x in burst_infos] + [x.metadata_path for x in burst_infos]))
+
+    # TODO this doesn't save files to the correct filename
+    # session = asf_search.ASFSession()
+    # with ThreadPoolExecutor() as executor:
+    #     executor.map(
+    #         asf_search.download_url,
+    #         urls,
+    #         [x.parent for x in paths],
+    #         [x.name for x in paths],
+    #         repeat(session, len(urls)),
+    #     )
+
     for url, path in zip(urls, paths):
         asf_search.download_url(url=url, path=path.parent, filename=path.name)
 
@@ -680,6 +742,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
         image_number = i + 1
         burst_infos = burst_infos[swath][polarization]
+        check_burst_group(burst_infos)
         swath_name = get_swath_name(safe_name, burst_infos, image_number)
 
         measurement_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
@@ -688,12 +751,12 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
         manifest_data['content_unit_measurement'].append(content)
         manifest_data['data_object_measurement'].append(data)
 
-        product_name = safe_dir / 'annotation' / f'{swath_name}.xml'
-        merge_product(burst_infos, product_name)
-        content, metadata, data = create_manifest_components(product_name, 'product')
-        manifest_data['content_unit'].append(content)
-        manifest_data['metadata_object'].append(metadata)
-        manifest_data['data_object'].append(data)
+        # product_name = safe_dir / 'annotation' / f'{swath_name}.xml'
+        # merge_product(burst_infos, product_name)
+        # content, metadata, data = create_manifest_components(product_name, 'product')
+        # manifest_data['content_unit'].append(content)
+        # manifest_data['metadata_object'].append(metadata)
+        # manifest_data['data_object'].append(data)
 
         noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.xml'
         merge_noise(burst_infos, noise_name)
