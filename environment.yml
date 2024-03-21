@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - python>=3.9
+  - python>=3.10
   - pip
   - gdal
   - boto3
@@ -12,6 +12,7 @@ dependencies:
   - requests
   - lxml
   - asf_search
+  - crcmod
   # For packaging, and testing
   - pytest
   - pytest-cov

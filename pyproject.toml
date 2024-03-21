@@ -13,7 +13,7 @@ where = ["src"]
 
 [project]
 name = "burst2safe"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dynamic = ["version"]
 authors = [
     {name="Forrest Williams", email="ffwilliams2@alaska.edu"},
@@ -25,7 +25,6 @@ classifiers=[
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -65,3 +64,12 @@ include = '\.pyx?$'
 
 [tool.ruff]
 line-length = 120
+src = ['src', 'tests']
+
+[tool.ruff.format]
+indent-style = 'space'
+quote-style = 'single'
+
+[tool.ruff.lint.isort]
+case-sensitive = true
+lines-after-imports = 2
