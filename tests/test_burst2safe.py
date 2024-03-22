@@ -61,9 +61,4 @@ def test_merge_product(burst_infos, tmp_path):
     noise = Product(burst_infos, 1)
     noise.assemble()
     noise.write_xml(out_path)
-    # validate_xml(out_path, xsd_file)
-
-    # out_path = tmp_path / 'file-001.xml'
-    # xsd_file = XSD_DIR / 's1-level-1-product.xsd'
-    # burst2safe.merge_product(burst_infos, out_path)
-    # validate_xml(out_path, xsd_file)
+    validate_xml(out_path, xsd_file)

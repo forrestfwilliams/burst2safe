@@ -39,7 +39,71 @@ class Product(Annotation):
         """The productInformation sub-record contains single value fields that
         are merged and included. All other sub-records contain lists which are
         concatenated. Details are presented in Table 3-11."""
-        pass
+        general_annotation = ET.Element('generalAnnotation')
+
+        # TODO: productInformation/platformHeading should be calculated more accurately
+        product_information = deepcopy(self.inputs[0].find('generalAnnotation/productInformation'))
+        general_annotation.append(product_information)
+
+        lists = [
+            'downlinkInformationList',
+            'orbitList',
+            'attitudeList',
+            'rawDataAnalysisList',
+            'replicaInformationList',
+            'noiseList',
+            'terrainHeightList',
+            'azimuthFmRateList',
+        ]
+        for list_name in lists:
+            list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
+            if list_name == 'replicaInformationList':
+                filtered = ET.Element('replicaInformationList')
+                filtered.set('count', str(len(list_elements)))
+                [filtered.append(deepcopy(element)) for element in list_elements]
+            else:
+                lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
+                filtered = lol.create_filtered_list([self.min_anx, self.max_anx])
+
+            general_annotation.append(filtered)
+
+        self.general_annotation = general_annotation
+
+    def create_image_annotation(self):
+        """This DSR contains two records which contain only single value fields.
+        The fields in the imageInformation record are included and merged
+        and all the fields for the processingInformation record are included;
+        except for the inputDimensionsList record, which is concatenated.
+        Details are presented in Table 3-12."""
+        image_annotation = ET.Element('imageAnnotation')
+
+        # TODO: there are some imageInformation fields that need to be recalculated
+        image_information = deepcopy(self.inputs[0].find('imageAnnotation/imageInformation'))
+        image_information.find('productFirstLineUtcTime').text = self.min_anx.isoformat()
+        image_information.find('productLastLineUtcTime').text = self.max_anx.isoformat()
+        image_information.find('productComposition').text = 'Assembled'
+        image_information.find('sliceNumber').text = '0'
+
+        slice_list = image_information.find('sliceList')
+        slice_list.set('count', '0')
+        for element in slice_list:
+            slice_list.remove(element)
+
+        image_information.find('numberOfLines').text = str(self.total_lines)
+
+        processing_information = deepcopy(self.inputs[0].find('imageAnnotation/processingInformation'))
+        dimensions_list = processing_information.find('inputDimensionsList')
+        for element in slice_list:
+            dimensions_list.remove(element)
+
+        list_elements = [prod.find('imageAnnotation/processingInformation/inputDimensionsList') for prod in self.inputs]
+        lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
+        filtered = lol.create_filtered_list([self.min_anx, self.max_anx])
+        [dimensions_list.append(element) for element in filtered]
+
+        image_annotation.append(image_information)
+        image_annotation.append(processing_information)
+        self.image_annotation = image_annotation
 
     def create_doppler_centroid(self):
         dc_lists = [prod.find('dopplerCentroid/dcEstimateList') for prod in self.inputs]
@@ -92,8 +156,8 @@ class Product(Annotation):
     def assemble(self):
         self.create_ads_header()
         self.create_quality_information()
-        # self.create_general_annotation()
-        # self.create_image_annotation()
+        self.create_general_annotation()
+        self.create_image_annotation()
         self.create_doppler_centroid()
         self.create_antenna_pattern()
         self.create_swath_timing()
@@ -104,8 +168,8 @@ class Product(Annotation):
         product = ET.Element('product')
         product.append(self.ads_header)
         product.append(self.quality_information)
-        # product.append(self.general_annotation)
-        # product.append(self.image_annotation)
+        product.append(self.general_annotation)
+        product.append(self.image_annotation)
         product.append(self.doppler_centroid)
         product.append(self.antenna_pattern)
         product.append(self.swath_timing)
