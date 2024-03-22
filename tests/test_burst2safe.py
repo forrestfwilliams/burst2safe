@@ -4,6 +4,7 @@ from lxml import etree
 
 from burst2safe.calibration import Calibration
 from burst2safe.noise import Noise
+from burst2safe.product import Product
 
 
 XSD_DIR = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data'
@@ -53,8 +54,16 @@ def test_merge_noise(burst_infos, tmp_path):
     validate_xml(out_path, xsd_file)
 
 
-# def test_merge_product(burst_infos, tmp_path):
-#     out_path = tmp_path / 'file-001.xml'
-#     xsd_file = XSD_DIR / 's1-level-1-product.xsd'
-#     burst2safe.merge_product(burst_infos, out_path)
-#     validate_xml(out_path, xsd_file)
+def test_merge_product(burst_infos, tmp_path):
+    # out_path = tmp_path / 'file-001.xml'
+    out_path = 'file-001.xml'
+    xsd_file = XSD_DIR / 's1-level-1-product.xsd'
+    noise = Product(burst_infos, 1)
+    noise.assemble()
+    noise.write_xml(out_path)
+    # validate_xml(out_path, xsd_file)
+
+    # out_path = tmp_path / 'file-001.xml'
+    # xsd_file = XSD_DIR / 's1-level-1-product.xsd'
+    # burst2safe.merge_product(burst_infos, out_path)
+    # validate_xml(out_path, xsd_file)
