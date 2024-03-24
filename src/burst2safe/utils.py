@@ -46,11 +46,12 @@ class BurstInfo:
         There is spatial overlap between bursts, so burst start/stop times will overlap as well.
         """
         annotation = get_subxml_from_metadata(self.metadata_path, 'product', self.swath, self.polarization)
-        start_utc_str = annotation.findall('.//burst')[self.burst_index].find('azimuthTime').text
-        self.start_utc = datetime.fromisoformat(start_utc_str)
-        # TODO: this is slightly wrong, but it's close enough for now
+        start_utcs = [datetime.fromisoformat(x.find('azimuthTime').text) for x in annotation.findall('.//burst')]
+        self.start_utc = start_utcs[self.burst_index]
+
         azimuth_time_interval = float(annotation.find('.//azimuthTimeInterval').text)
-        self.stop_utc = self.start_utc + (self.length * timedelta(seconds=azimuth_time_interval))
+        burst_time_interval = timedelta(seconds=(self.length - 1) * azimuth_time_interval)
+        self.stop_utc = self.start_utc + burst_time_interval
 
 
 def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
