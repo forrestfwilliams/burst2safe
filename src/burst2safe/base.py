@@ -23,7 +23,9 @@ class ListOfListElements:
             raise ValueError('Elements must contain only one type of subelement.')
         self.subelement_name = names[0]
 
-        if 'azimuthTime' in [x.tag for x in elements[0].iter()]:
+        if self.name == 'replicaInformationList':
+            self.time_field = 'referenceReplica/azimuthTime'
+        elif 'azimuthTime' in [x.tag for x in elements[0].iter()]:
             self.time_field = 'azimuthTime'
         elif 'time' in [x.tag for x in elements[0].iter()]:
             self.time_field = 'time'

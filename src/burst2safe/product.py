@@ -58,12 +58,14 @@ class Product(Annotation):
         for list_name in lists:
             list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
             if list_name == 'replicaInformationList':
+                lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
+                unique = lol.get_nonduplicate_elements()
                 filtered = ET.Element('replicaInformationList')
-                filtered.set('count', str(len(list_elements)))
-                [filtered.append(deepcopy(element)) for element in list_elements]
+                filtered.set('count', str(len(unique)))
+                [filtered.append(element) for element in unique]
             else:
                 lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
-                filtered = lol.create_filtered_list([self.min_anx, self.max_anx])
+                filtered = lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=500))
 
             general_annotation.append(filtered)
 
@@ -143,14 +145,14 @@ class Product(Annotation):
 
     def create_coordinate_conversion(self):
         coordinate_conversion = ET.Element('coordinateConversion')
-        coordinate_conversion.set('count', '0')
-        coordinate_conversion.append(ET.Element('coordinateConversionList'))
+        coordinate_conversion_list = ET.SubElement(coordinate_conversion, 'coordinateConversionList')
+        coordinate_conversion_list.set('count', '0')
         self.coordinate_conversion = coordinate_conversion
 
     def create_swath_merging(self):
         swath_merging = ET.Element('swathMerging')
-        swath_merging.set('count', '0')
-        swath_merging.append(ET.Element('swathMergeList'))
+        swath_merge_list = ET.SubElement(swath_merging, 'swathMergeList')
+        swath_merge_list.set('count', '0')
         self.swath_merging = swath_merging
 
     def assemble(self):
