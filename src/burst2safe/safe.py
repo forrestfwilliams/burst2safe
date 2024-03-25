@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 import lxml.etree as ET
+import numpy as np
+from shapely.geometry import MultiPoint, MultiPolygon, Polygon
 
 from burst2safe.calibration import Calibration
 from burst2safe.measurement import Measurement
@@ -53,6 +55,17 @@ class Swath:
         platfrom, _, _, _, _, _, _, orbit, data_take, _ = safe_name.lower().split('_')
         swath_name = f'{platfrom}-{swath}-slc-{pol}-{start}-{stop}-{orbit}-{data_take}-{self.image_number:03d}'
         return swath_name
+
+    def get_bbox(self):
+        gcps = self.product.xml.findall('geolocationGrid/geolocationGridPointList/geolocationGridPoint')
+        lats = [float(gcp.find('latitude').text) for gcp in gcps]
+        lons = [float(gcp.find('longitude').text) for gcp in gcps]
+        points = MultiPoint([(lon, lat) for lon, lat in zip(lons, lats)])
+        min_rotated_rect = points.minimum_rotated_rectangle
+        bbox = Polygon(min_rotated_rect.exterior)
+        # minx, miny, maxx, maxy = min(lons), min(lats), max(lons), max(lats)
+        # bbox = box(minx, miny, maxx, maxy)
+        return bbox
 
     def assemble(self):
         self.measurement = Measurement(self.burst_infos, self.image_number, self.work_dir)
@@ -131,6 +144,12 @@ class Safe:
             burst_infos[swath][polarization] = sorted(burst_infos[swath][polarization], key=lambda x: x.burst_id)
 
         return burst_infos
+
+    def get_bbox(self):
+        bboxs = MultiPolygon([swath.get_bbox() for swath in self.swaths])
+        min_rotated_rect = bboxs.minimum_rotated_rectangle
+        bbox = Polygon(min_rotated_rect.exterior)
+        return bbox
 
     def create_dir_structure(self) -> Path:
         """Create a directory for the SAFE file."""
@@ -231,6 +250,14 @@ class Manifest:
         ]
         section = 'metadataSection'
         [metadata_section.append(deepcopy(x)) for x in first_manifest.find(section) if x.get('ID') in ids_to_keep]
+
+        bbox = self.safe.get_bbox()
+        new_coords = [(np.round(y, 6), np.round(x, 6)) for x, y in bbox.exterior.coords]
+        # TODO: only works for descending
+        new_coords = [new_coords[2], new_coords[3], new_coords[0], new_coords[1]]
+        new_coords = ' '.join([f'{x},{y}' for x, y in new_coords])
+        coordinates = metadata_section.find('.//{*}coordinates')
+        coordinates.text = new_coords
 
         self.metadata_section = metadata_section
 
