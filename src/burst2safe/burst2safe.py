@@ -14,7 +14,7 @@ from burst2safe.utils import gather_burst_infos, optional_wd
 warnings.filterwarnings('ignore')
 
 
-def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None:
+def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> Path:
     work_dir = optional_wd(work_dir)
     burst_infos = gather_burst_infos(granules, work_dir)
     urls = list(dict.fromkeys([x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]))
@@ -34,11 +34,12 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
     for url, path in zip(urls, paths):
         asf_search.download_url(url=url, path=path.parent, filename=path.name)
 
-    [x.add_shape_info() for x in burst_infos]
-    [x.add_start_stop_utc() for x in burst_infos]
+    [info.add_shape_info() for info in burst_infos]
+    [info.add_start_stop_utc() for info in burst_infos]
 
     safe = Safe(burst_infos, work_dir)
-    safe.create_safe()
+    safe_path = safe.create_safe()
+    return safe_path
 
 
 def main() -> None:
