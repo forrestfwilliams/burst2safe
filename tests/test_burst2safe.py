@@ -42,7 +42,7 @@ def test_merge_calibration(burst_infos, tmp_path):
     xsd_file = XSD_DIR / 's1-level-1-calibration.xsd'
     noise = Calibration(burst_infos, 1)
     noise.assemble()
-    noise.write_xml(out_path)
+    noise.write(out_path)
     validate_xml(out_path, xsd_file)
 
 
@@ -51,7 +51,7 @@ def test_merge_noise(burst_infos, tmp_path):
     xsd_file = XSD_DIR / 's1-level-1-noise.xsd'
     noise = Noise(burst_infos, 1)
     noise.assemble()
-    noise.write_xml(out_path)
+    noise.write(out_path)
     validate_xml(out_path, xsd_file)
 
 
@@ -60,5 +60,5 @@ def test_merge_product(burst_infos, tmp_path):
     xsd_file = XSD_DIR / 's1-level-1-product.xsd'
     noise = Product(burst_infos, 1)
     noise.assemble()
-    noise.write_xml(out_path)
+    noise.write(out_path)
     validate_xml(out_path, xsd_file)
