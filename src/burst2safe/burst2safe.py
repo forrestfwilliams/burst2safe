@@ -15,6 +15,10 @@ import lxml.etree as ET
 import numpy as np
 from osgeo import gdal
 
+from burst2safe.calibration import Calibration
+from burst2safe.measurement import Measurement
+from burst2safe.noise import Noise
+from burst2safe.product import Product
 from burst2safe.utils import (
     BurstInfo,
     drop_duplicates,
@@ -255,7 +259,7 @@ def merge_noise(burst_infos: Iterable[BurstInfo], out_path: Path):
     new_noise_rg = filter_elements_by_time(noise_rgs, min_anx, max_anx, start_line, slc_lengths=slc_lengths)
     new_noise.append(new_noise_rg)
 
-    new_noise_az = deepcopy(noise.findall('noiseAzimuthVectorList/noiseAzimuthVector'))[0]
+    new_noise_az = deepcopy(noises.findall('noiseAzimuthVectorList/noiseAzimuthVector'))[0]
     line_element = new_noise_az.find('line')
 
     lines = np.array([int(x) for x in line_element.text.split(' ')])
@@ -566,32 +570,40 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> None
         check_burst_group(burst_infos)
         swath_name = get_swath_name(safe_name, burst_infos, image_number)
 
-        # measurement_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
-        # bursts_to_tiff(burst_infos, measurement_name, work_dir)
-        # content, _, data = create_manifest_components(measurement_name, 'measurement')
-        # manifest_data['content_unit_measurement'].append(content)
-        # manifest_data['data_object_measurement'].append(data)
+        measurement_name = safe_dir / 'measurement' / f'{swath_name}.tiff'
+        measurement = Measurement(burst_infos, image_number, work_dir)
+        measurement.assemble()
+        measurement.write(measurement_name)
+        content, data = measurement.create_manifest_components()
+        manifest_data['content_unit_measurement'].append(content)
+        manifest_data['data_object_measurement'].append(data)
 
-        # product_name = safe_dir / 'annotation' / f'{swath_name}.xml'
-        # merge_product(burst_infos, product_name)
-        # content, metadata, data = create_manifest_components(product_name, 'product')
-        # manifest_data['content_unit'].append(content)
-        # manifest_data['metadata_object'].append(metadata)
-        # manifest_data['data_object'].append(data)
-
-        noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.xml'
-        merge_noise(burst_infos, noise_name)
-        content, metadata, data = create_manifest_components(noise_name, 'noise')
+        annotation_name = safe_dir / 'annotation' / f'{swath_name}.xml'
+        annotation = Product(burst_infos, image_number)
+        annotation.assemble()
+        annotation.write(annotation_name)
+        content, metadata, data = annotation.create_manifest_components()
         manifest_data['content_unit'].append(content)
         manifest_data['metadata_object'].append(metadata)
         manifest_data['data_object'].append(data)
 
-        # calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.xml'
-        # merge_calibration(burst_infos, calibration_name)
-        # content, metadata, data = create_manifest_components(calibration_name, 'calibration')
-        # manifest_data['content_unit'].append(content)
-        # manifest_data['metadata_object'].append(metadata)
-        # manifest_data['data_object'].append(data)
+        noise_name = safe_dir / 'annotation' / 'calibration' / f'noise-{swath_name}.xml'
+        noise = Noise(burst_infos, image_number)
+        noise.assemble()
+        noise.write(noise_name)
+        content, metadata, data = noise.create_manifest_components()
+        manifest_data['content_unit'].append(content)
+        manifest_data['metadata_object'].append(metadata)
+        manifest_data['data_object'].append(data)
+
+        calibration_name = safe_dir / 'annotation' / 'calibration' / f'calibration-{swath_name}.xml'
+        calibration = Calibration(burst_infos, i)
+        calibration.assemble()
+        calibration.write(calibration_name)
+        content, metadata, data = calibration.create_manifest_components()
+        manifest_data['content_unit'].append(content)
+        manifest_data['metadata_object'].append(metadata)
+        manifest_data['data_object'].append(data)
 
     manifest_name = safe_dir / 'manifest.safe'
     template_manifest = get_subxml_from_metadata(burst_infos[0].metadata_path, 'manifest')[1]

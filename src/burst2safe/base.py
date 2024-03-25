@@ -1,3 +1,4 @@
+import hashlib
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -96,7 +97,7 @@ class Annotation:
         self.metadata_paths = drop_duplicates([x.metadata_path for x in burst_infos])
         self.swath, self.pol = burst_infos[0].swath, burst_infos[0].polarization
         self.start_line = burst_infos[0].burst_index * burst_infos[0].length
-        self.total_lines = len(burst_infos) * burst_infos[0].length 
+        self.total_lines = len(burst_infos) * burst_infos[0].length
         self.stop_line = self.start_line + self.total_lines
         self.min_anx = min([x.start_utc for x in burst_infos])
         self.max_anx = max([x.stop_utc for x in burst_infos])
@@ -124,9 +125,57 @@ class Annotation:
         ads_header.find('imageNumber').text = f'{self.image_number:03d}'
         self.ads_header = ads_header
 
-    def write_xml(self, out_path: Path) -> None:
+    def write(self, out_path: Path, update_info=True) -> None:
         self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+        if update_info:
+            self.path = out_path
+            with open(out_path, 'rb') as f:
+                file_bytes = f.read()
+                self.size_bytes = len(file_bytes)
+                self.md5 = hashlib.md5(file_bytes).hexdigest()
 
     def __str__(self, **kwargs):
         xml_str = ET.tostring(self.xml, pretty_print=True, **kwargs)
         return xml_str.decode()
+
+    def create_manifest_components(self):
+        """Create the components for the manifest file."""
+        unit_type = 'Metadata Unit'
+        mime_type = 'text/xml'
+
+        schema = '{urn:ccsds:schema:xfdu:1}'
+        rep_id = f's1Level1{self.metadata_type.capitalize()}Schema'
+        simple_name = self.path.with_suffix('').name.replace('-', '')
+        if self.metadata_type == 'product':
+            simple_name = f'product{simple_name}'
+
+        content_unit = ET.Element(f'{schema}contentUnit')
+        content_unit.set('unitType', unit_type)
+        content_unit.set('repID', rep_id)
+        ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
+
+        metadata_object = ET.Element('metadataObject')
+        metadata_object.set('ID', f'{simple_name}Annotation')
+        metadata_object.set('classification', 'DESCRIPTION')
+        metadata_object.set('category', 'DMD')
+        ET.SubElement(metadata_object, 'dataObjectPointer', dataObjectID=simple_name)
+
+        safe_index = [i for i, x in enumerate(self.path.parts) if 'SAFE' in x][-1]
+        safe_path = Path(*self.path.parts[: safe_index + 1])
+        relative_path = self.path.relative_to(safe_path)
+
+        data_object = ET.Element('dataObject')
+        data_object.set('ID', simple_name)
+        data_object.set('repID', rep_id)
+        byte_stream = ET.SubElement(data_object, 'byteStream')
+        byte_stream.set('mimeType', mime_type)
+        byte_stream.set('size', str(self.size_bytes))
+        file_location = ET.SubElement(byte_stream, 'fileLocation')
+        file_location.set('locatorType', 'URL')
+        file_location.set('href', f'./{relative_path}')
+        checksum = ET.SubElement(byte_stream, 'checksum')
+        checksum.set('checksumName', 'MD5')
+        checksum.text = self.md5
+
+        return content_unit, metadata_object, data_object
