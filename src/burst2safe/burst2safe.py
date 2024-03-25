@@ -2,6 +2,7 @@
 
 import warnings
 from argparse import ArgumentParser
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -20,19 +21,12 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> Path
     urls = list(dict.fromkeys([x.data_url for x in burst_infos] + [x.metadata_url for x in burst_infos]))
     paths = list(dict.fromkeys([x.data_path for x in burst_infos] + [x.metadata_path for x in burst_infos]))
 
-    # TODO: this doesn't save files to the correct filename
-    # session = asf_search.ASFSession()
-    # with ThreadPoolExecutor() as executor:
-    #     executor.map(
-    #         asf_search.download_url,
-    #         urls,
-    #         [x.parent for x in paths],
-    #         [x.name for x in paths],
-    #         repeat(session, len(urls)),
-    #     )
-
-    for url, path in zip(urls, paths):
-        asf_search.download_url(url=url, path=path.parent, filename=path.name)
+    dirs = [x.parent for x in paths]
+    names = [x.name for x in paths]
+    # TODO: bug in asf_search (issue #282), creates a need for multiple sessions
+    sessions = [asf_search.ASFSession() for _ in range(len(urls))]
+    with ThreadPoolExecutor() as executor:
+        executor.map(asf_search.download_url, urls, dirs, names, sessions)
 
     [info.add_shape_info() for info in burst_infos]
     [info.add_start_stop_utc() for info in burst_infos]
