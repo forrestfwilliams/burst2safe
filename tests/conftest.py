@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from burst2safe import burst2safe
+from burst2safe.utils import BurstInfo
 
 
 TEST_DIR = Path(__file__).parent
@@ -11,7 +11,7 @@ TEST_DIR = Path(__file__).parent
 
 @pytest.fixture
 def burst_info1():
-    burst_info = burst2safe.BurstInfo(
+    burst_info = BurstInfo(
         granule='S1_136231_IW2_20200604T022312_VV_7C85-BURST',
         slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
         swath='IW2',
@@ -37,7 +37,7 @@ def burst_info1():
 
 @pytest.fixture
 def burst_info2():
-    burst_info = burst2safe.BurstInfo(
+    burst_info = BurstInfo(
         granule='S1_136232_IW2_20200604T022315_VV_7C85-BURST',
         slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
         swath='IW2',
