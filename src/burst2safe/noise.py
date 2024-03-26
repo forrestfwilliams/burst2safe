@@ -25,8 +25,18 @@ class Noise(Annotation):
 
         lines = np.array([int(x) for x in line_element.text.split(' ')])
         lines += line_offset
-        first_index = np.where(lines == lines[lines <= 0].max())[0][0]
-        last_index = np.where(lines == lines[lines >= (self.stop_line - self.start_line - 1)].min())[0][0]
+
+        first_line = 0
+        if np.any(lines <= first_line):
+            first_index = np.where(lines == lines[lines <= first_line].max())[0][0]
+        else:
+            first_index = 0
+
+        last_line = self.stop_line - self.start_line - 1
+        if np.any(lines >= last_line):
+            last_index = np.where(lines == lines[lines >= last_line].min())[0][0]
+        else:
+            last_index = lines.shape[0] - 1
 
         new_az_vector.find('firstAzimuthLine').text = str(lines[first_index])
         new_az_vector.find('lastAzimuthLine').text = str(lines[last_index])

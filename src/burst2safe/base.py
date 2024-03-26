@@ -92,6 +92,7 @@ class ListOfListElements:
 
 class Annotation:
     def __init__(self, burst_infos: Iterable[BurstInfo], metadata_type: str, image_number: int):
+        self.burst_infos = burst_infos
         self.metadata_type = metadata_type
         self.image_number = image_number
         self.metadata_paths = drop_duplicates([x.metadata_path for x in burst_infos])

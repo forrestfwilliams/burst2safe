@@ -127,7 +127,12 @@ class Product(Annotation):
         # TODO: need to update burst byteOffsets
         burst_lists = [prod.find('swathTiming/burstList') for prod in self.inputs]
         burst_lol = ListOfListElements(burst_lists, self.start_line, self.slc_lengths)
-        filtered = burst_lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=0.5))
+        filtered = burst_lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=0.1))
+
+        # TODO: This is needed since we always buffering backward AND forward
+        if int(filtered.get('count')) > len(self.burst_infos):
+            filtered.remove(filtered[-1])
+            filtered.set('count', str(int(filtered.get('count')) - 1))
 
         swath_timing = ET.Element('swathTiming')
         swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/linesPerBurst')))
