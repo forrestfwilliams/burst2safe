@@ -31,12 +31,10 @@ classifiers=[
 ]
 dependencies = [
   "gdal",
-  "boto3",
-  "tqdm",
   "numpy",
-  "requests",
   "lxml",
   "asf_search",
+  "crcmod",
 ]
 
 [project.urls]
