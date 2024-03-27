@@ -1,4 +1,5 @@
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Iterable
 
@@ -6,6 +7,15 @@ import lxml.etree as ET
 
 from burst2safe.base import Annotation, ListOfListElements
 from burst2safe.utils import BurstInfo, flatten
+
+
+@dataclass
+class GeoPoint:
+    x: float
+    y: float
+    z: float
+    line: int
+    pixel: int
 
 
 class Product(Annotation):
@@ -20,6 +30,7 @@ class Product(Annotation):
         self.geolocation_grid = None
         self.coordinate_conversion = None
         self.swath_merging = None
+        self.gcps = []
 
     def create_quality_information(self):
         quality_information = ET.Element('qualityInformation')
@@ -147,6 +158,17 @@ class Product(Annotation):
         geolocation_grid = ET.Element('geolocationGrid')
         geolocation_grid.append(filtered)
         self.geolocation_grid = geolocation_grid
+
+        gcp_xmls = geolocation_grid.find('geolocationGridPointList').findall('*')
+        for gcp_xml in gcp_xmls:
+            gcp = GeoPoint(
+                float(gcp_xml.find('longitude').text),
+                float(gcp_xml.find('latitude').text),
+                float(gcp_xml.find('height').text),
+                int(gcp_xml.find('line').text),
+                int(gcp_xml.find('pixel').text),
+            )
+            self.gcps.append(gcp)
 
     def create_coordinate_conversion(self):
         coordinate_conversion = ET.Element('coordinateConversion')
