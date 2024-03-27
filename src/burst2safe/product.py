@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Iterable
 
 import lxml.etree as ET
+import numpy as np
 
 from burst2safe.base import Annotation, ListOfListElements
 from burst2safe.utils import BurstInfo, flatten
@@ -52,8 +53,9 @@ class Product(Annotation):
         concatenated. Details are presented in Table 3-11."""
         general_annotation = ET.Element('generalAnnotation')
 
-        # TODO: productInformation/platformHeading should be calculated more accurately
         product_information = deepcopy(self.inputs[0].find('generalAnnotation/productInformation'))
+        # TODO: productInformation/platformHeading should be calculated more accurately
+        product_information.find('platformHeading').text = ''
         general_annotation.append(product_information)
 
         lists = [
@@ -90,7 +92,6 @@ class Product(Annotation):
         Details are presented in Table 3-12."""
         image_annotation = ET.Element('imageAnnotation')
 
-        # TODO: there are some imageInformation fields that need to be recalculated
         image_information = deepcopy(self.inputs[0].find('imageAnnotation/imageInformation'))
         image_information.find('productFirstLineUtcTime').text = self.min_anx.isoformat()
         image_information.find('productLastLineUtcTime').text = self.max_anx.isoformat()
@@ -104,6 +105,17 @@ class Product(Annotation):
 
         image_information.find('numberOfLines').text = str(self.total_lines)
 
+        az_spacing_path = 'imageAnnotation/imageInformation/azimuthPixelSpacing'
+        az_spacing = np.mean([float(prod.find(az_spacing_path).text) for prod in self.inputs])
+        image_information.find('azimuthPixelSpacing').text = f'{az_spacing:.6e}'
+
+        image_information.find('imageStatistics/outputDataMean/re').text = ''
+        image_information.find('imageStatistics/outputDataMean/im').text = ''
+        image_information.find('imageStatistics/outputDataStdDev/re').text = ''
+        image_information.find('imageStatistics/outputDataStdDev/im').text = ''
+
+        image_annotation.append(image_information)
+
         processing_information = deepcopy(self.inputs[0].find('imageAnnotation/processingInformation'))
         dimensions_list = processing_information.find('inputDimensionsList')
         for element in slice_list:
@@ -114,9 +126,21 @@ class Product(Annotation):
         filtered = lol.create_filtered_list([self.min_anx, self.max_anx])
         [dimensions_list.append(element) for element in filtered]
 
-        image_annotation.append(image_information)
         image_annotation.append(processing_information)
         self.image_annotation = image_annotation
+
+    def update_data_stats(self, data_mean, data_std):
+        base_path = 'imageInformation/imageStatistics/outputData'
+        data_mean_re = f'{data_mean.real:.6e}'
+        data_mean_im = f'{data_mean.imag:.6e}'
+        data_std_re = f'{data_std.real:.6e}'
+        data_std_im = f'{data_std.imag:.6e}'
+
+        for elem in [self.image_annotation, self.xml.find('imageAnnotation')]:
+            elem.find(f'{base_path}Mean/re').text = data_mean_re
+            elem.find(f'{base_path}Mean/im').text = data_mean_im
+            elem.find(f'{base_path}StdDev/re').text = data_std_re
+            elem.find(f'{base_path}StdDev/im').text = data_std_im
 
     def create_doppler_centroid(self):
         dc_lists = [prod.find('dopplerCentroid/dcEstimateList') for prod in self.inputs]
@@ -135,15 +159,18 @@ class Product(Annotation):
         self.antenna_pattern = antenna_pattern
 
     def create_swath_timing(self):
-        # TODO: need to update burst byteOffsets
         burst_lists = [prod.find('swathTiming/burstList') for prod in self.inputs]
         burst_lol = ListOfListElements(burst_lists, self.start_line, self.slc_lengths)
         filtered = burst_lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=0.1))
 
-        # TODO: This is needed since we always buffering backward AND forward
+        # TODO: This is needed since we always buffer backward AND forward
         if int(filtered.get('count')) > len(self.burst_infos):
             filtered.remove(filtered[-1])
             filtered.set('count', str(int(filtered.get('count')) - 1))
+
+        # TODO: need to update burst byteOffset field
+        for burst in filtered:
+            burst.find('byteOffset').text = ''
 
         swath_timing = ET.Element('swathTiming')
         swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/linesPerBurst')))

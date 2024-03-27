@@ -74,6 +74,7 @@ class Swath:
 
     def write(self):
         self.measurement.write(self.measurement_name)
+        self.product.update_data_stats(self.measurement.data_mean, self.measurement.data_std)
         self.product.write(self.product_name)
         self.noise.write(self.noise_name)
         self.calibration.write(self.calibration_name)

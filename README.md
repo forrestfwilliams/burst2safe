@@ -62,11 +62,13 @@ All full accounting of omitted datasets and fields can be found below:
         * RFI annotation XMLs are currently omitted, but we plan to add this soon.
     * Product
         * `generalAnnotation/productInformation/platformHeading` set to `''`.
-        * `imageAnnotation/imageInformation/azimuthPixelSpacing` set to `''`.
-        * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` set to `''`.
-        * `imageAnnotation/imageInformation/imageStatistics/outputDataStdDev` set to `''`.
+        * `imageAnnotation/imageInformation/azimuthPixelSpacing`
+            - calculated as average of Level 1 SLCs, not slices.
+        * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` / `outputDataStdDev`
+            - calculated using `np.mean`/`np.std` on valid data.
         * `swathTiming/burstList/burst/byteOffset` components are set to `''`.
 * Measurement GeoTIFFs
+    * Invalid data as denoted by `swathTiming/burstList/burst/firstValidSample` and `lastValidSample` are set to zero. This done by the ASF extractor, not this tool.
     * TIFF tags **that are not GeoTIFF tags** are omitted. See Product Specification Table 3-8 for full list.
 * Preview
     * All preview datasets and the preview directory are omitted.
