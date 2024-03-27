@@ -78,7 +78,7 @@ All full accounting of omitted datasets and fields can be found below:
     * The SAFE report PDF is omitted.
 
 ### Other Known Compatibility Issues
-This tool may not work for SAFEs created with Sentinel-1 IPF version < 3.19. In the product annotation files, the `height` sub-field of `GeolocationGridPoint` components was not available prior to IPF v3.19. This field is currently used to concatenate geocontrol points for the measurment GeoTIFFs, and thus the tool may fail if these sub-fields are not present.
+This tool may not work for SAFEs created with Sentinel-1 IPF version <= v3.19. In the product annotation files, the `height` sub-field of `GeolocationGridPoint` components was not available prior to IPF v3.19. This field is currently used to concatenate geocontrol points for the measurment GeoTIFFs, and thus the tool may fail if these sub-fields are not present.
 
 ## License
 `burst2safe` is licensed under the BSD 2-Clause License. See the LICENSE file for more details.
