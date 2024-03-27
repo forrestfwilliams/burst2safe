@@ -1,75 +1,68 @@
 import hashlib
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
 import lxml.etree as ET
-from osgeo import gdal
+import numpy as np
+from osgeo import gdal, osr
 
-from burst2safe.utils import BurstInfo
+from burst2safe.product import Product
+from burst2safe.utils import BurstInfo, get_subxml_from_metadata
 
 
 class Measurement:
-    def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int, work_dir: Path):
+    def __init__(self, burst_infos: Iterable[BurstInfo], product_obj: Product, image_number: int):
         self.burst_infos = burst_infos
+        self.product = product_obj
         self.image_number = image_number
-        self.work_dir = work_dir
-
         self.swath = burst_infos[0].swath
-        self.vrt_path = work_dir / f'{self.swath}.vrt'
-
         self.burst_length = burst_infos[0].length
         self.burst_width = burst_infos[0].width
         self.total_width = self.burst_width
         self.total_length = self.burst_length * len(burst_infos)
 
-    def create_vrt(self):
-        vrt_dataset = ET.Element('VRTDataset', rasterXSize=str(self.total_width), rasterYSize=str(self.total_length))
-        vrt_raster_band = ET.SubElement(vrt_dataset, 'VRTRasterBand', dataType='CInt16', band='1')
-        no_data_value = ET.SubElement(vrt_raster_band, 'NoDataValue')
-        no_data_value.text = '0.0'
+    def get_data(self, band: int = 1) -> np.ndarray:
+        data = np.zeros((self.total_length, self.total_width), dtype=np.csingle)
         for i, burst_info in enumerate(self.burst_infos):
-            simple_source = ET.SubElement(vrt_raster_band, 'SimpleSource')
-            source_filename = ET.SubElement(simple_source, 'SourceFilename', relativeToVRT='1')
-            source_filename.text = burst_info.data_path.name
-            source_band = ET.SubElement(simple_source, 'SourceBand')
-            source_band.text = '1'
-            ET.SubElement(
-                simple_source,
-                'SourceProperties',
-                RasterXSize=str(self.burst_width),
-                RasterYSize=str(self.burst_length),
-                DataType='CInt16',
-            )
-            ET.SubElement(
-                simple_source,
-                'SrcRect',
-                xOff=str(0),
-                yOff=str(0),
-                xSize=str(self.burst_width),
-                ySize=str(self.burst_length),
-            )
-            ET.SubElement(
-                simple_source,
-                'DstRect',
-                xOff=str(0),
-                yOff=str(self.burst_length * i),
-                xSize=str(self.burst_width),
-                ySize=str(self.burst_length),
-            )
-        tree = ET.ElementTree(vrt_dataset)
-        tree.write(self.vrt_path, pretty_print=True, xml_declaration=False, encoding='utf-8')
+            ds = gdal.Open(str(burst_info.data_path))
+            data[i * self.burst_length : (i + 1) * self.burst_length, :] = ds.GetRasterBand(band).ReadAsArray()
+            ds = None
+        return data
+
+    def add_metadata(self, ds):
+        gcps = self.product.gcps
+        gdal_gcps = [gdal.GCP(gcp.x, gcp.y, gcp.z, gcp.pixel, gcp.line) for gcp in gcps]
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
+
+        manifest = get_subxml_from_metadata(self.burst_infos[0].metadata_path, 'manifest')[1]
+        software = 'Sentinel-1 IPF'
+        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == software][0]
+        software_version = f'{software} {version_xml.get("version")}'
+
+        ds.SetGCPs(gdal_gcps, srs.ExportToWkt())
+        ds.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
+        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
+        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
+        ds.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
 
     def create_geotiff(self, out_path: Path, update_info=True):
-        gdal.Translate(str(out_path), str(self.vrt_path), format='GTiff')
+        mem_drv = gdal.GetDriverByName('MEM')
+        mem_ds = mem_drv.Create('', self.total_width, self.total_length, 1, gdal.GDT_CInt16)
+        data = self.get_data()
+        band = mem_ds.GetRasterBand(1)
+        band.WriteArray(data)
+        band.SetNoDataValue(0)
+        self.add_metadata(mem_ds)
+        gdal.Translate(str(out_path), mem_ds, format='GTiff')
+        mem_ds = None
+        self.path = out_path
         if update_info:
-            self.path = out_path
             with open(self.path, 'rb') as f:
                 file_bytes = f.read()
                 self.size_bytes = len(file_bytes)
                 self.md5 = hashlib.md5(file_bytes).hexdigest()
-
-    # TODO add geotiff metadata
-    # def add_metadata(self):
 
     def create_manifest_components(self):
         unit_type = 'Measurement Data Unit'
@@ -102,9 +95,6 @@ class Measurement:
         checksum.text = self.md5
 
         return content_unit, data_object
-
-    def assemble(self):
-        self.create_vrt()
 
     def write(self, out_path):
         self.create_geotiff(out_path)

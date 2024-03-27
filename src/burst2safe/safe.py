@@ -17,14 +17,11 @@ from burst2safe.utils import BurstInfo, get_subxml_from_metadata, optional_wd
 
 
 class Swath:
-    def __init__(
-        self, burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int, work_dir: Optional[Path] = None
-    ):
+    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int):
         self.check_burst_group_validity(burst_infos)
         self.burst_infos = sorted(burst_infos, key=lambda x: x.burst_id)
         self.safe_path = safe_path
         self.image_number = image_number
-        self.work_dir = optional_wd(work_dir)
         self.swath = self.burst_infos[0].swath
         self.polarization = self.burst_infos[0].polarization
 
@@ -63,20 +60,17 @@ class Swath:
         points = MultiPoint([(lon, lat) for lon, lat in zip(lons, lats)])
         min_rotated_rect = points.minimum_rotated_rectangle
         bbox = Polygon(min_rotated_rect.exterior)
-        # minx, miny, maxx, maxy = min(lons), min(lats), max(lons), max(lats)
-        # bbox = box(minx, miny, maxx, maxy)
         return bbox
 
     def assemble(self):
-        self.measurement = Measurement(self.burst_infos, self.image_number, self.work_dir)
         self.product = Product(self.burst_infos, self.image_number)
         self.noise = Noise(self.burst_infos, self.image_number)
         self.calibration = Calibration(self.burst_infos, self.image_number)
         self.annotations = [self.product, self.noise, self.calibration]
-        self.components = [self.measurement, self.product, self.noise, self.calibration]
-
-        for component in self.components:
+        for component in self.annotations:
             component.assemble()
+
+        self.measurement = Measurement(self.burst_infos, self.product, self.image_number)
 
     def write(self):
         self.measurement.write(self.measurement_name)
@@ -169,7 +163,7 @@ class Safe:
         for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
             image_number = i + 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
-            swath = Swath(burst_infos, self.safe_path, image_number, self.work_dir)
+            swath = Swath(burst_infos, self.safe_path, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
