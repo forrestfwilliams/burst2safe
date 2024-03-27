@@ -55,27 +55,27 @@ All full accounting of omitted datasets and fields can be found below:
 
 * Annotation
     * Noise
-        * No intentional omissions or nulls
+        * No intentional omissions or nulls.
     * Calibration
-        * No intentional omissions or nulls
+        * No intentional omissions or nulls.
     * RFI
         * RFI annotation XMLs are currently omitted, but we plan to add this soon.
     * Product
-        * `generalAnnotation/productInformation/platformHeading` set to Null
-        * `imageAnnotation/imageInformation/azimuthPixelSpacing` set to Null
-        * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` set to Null
-        * `imageAnnotation/imageInformation/imageStatistics/outputDataStdDev` set to Null
-        * `swathTiming/burstList/burst/byteOffset` components are set to Null
+        * `generalAnnotation/productInformation/platformHeading` set to `''`.
+        * `imageAnnotation/imageInformation/azimuthPixelSpacing` set to `''`.
+        * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` set to `''`.
+        * `imageAnnotation/imageInformation/imageStatistics/outputDataStdDev` set to `''`.
+        * `swathTiming/burstList/burst/byteOffset` components are set to `''`.
 * Measurement GeoTIFFs
     * TIFF tags **that are not GeoTIFF tags** are omitted. See Product Specification Table 3-8 for full list.
 * Preview
-    * All preview datasets and the preview directory are omitted
+    * All preview datasets and the preview directory are omitted.
 * Support
-    * s1-product-preview.xsd, s1-map-overlay.xsd, s1-quicklook.xsd and are omitted
+    * s1-product-preview.xsd, s1-map-overlay.xsd, s1-quicklook.xsd and are omitted.
 * Manifest
-    * `metadataObjects` associated with support datasets are omitted
+    * `metadataObjects` associated with support datasets are omitted.
 * SAFE report
-    * The SAFE report PDF is omitted
+    * The SAFE report PDF is omitted.
 
 ### Other Known Compatibility Issues
 This tool may not work for SAFEs created with Sentinel-1 IPF version < 3.19. In the product annotation files, the `height` sub-field of `GeolocationGridPoint` components was not available prior to IPF v3.19. This field is currently used to concatenate geocontrol points for the measurment GeoTIFFs, and thus the tool may fail if these sub-fields are not present.
