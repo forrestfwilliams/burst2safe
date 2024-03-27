@@ -22,8 +22,9 @@ def validate_xml(xml_file, xsd_file):
     # Validate XML against XSD
     is_valid = schema.validate(xml_doc)
     if not is_valid:
-        print(schema.error_log)
-    assert is_valid
+        raise ValueError(f'XML failed validation with message:\n{schema.error_log}')
+
+    return is_valid
 
 
 def test_optional_wd():
@@ -40,10 +41,10 @@ def test_optional_wd():
 def test_merge_calibration(burst_infos, tmp_path):
     out_path = tmp_path / 'file-001.xml'
     xsd_file = XSD_DIR / 's1-level-1-calibration.xsd'
-    noise = Calibration(burst_infos, 1)
-    noise.assemble()
-    noise.write(out_path)
-    validate_xml(out_path, xsd_file)
+    calibration = Calibration(burst_infos, 1)
+    calibration.assemble()
+    calibration.write(out_path)
+    assert validate_xml(out_path, xsd_file)
 
 
 def test_merge_noise(burst_infos, tmp_path):
@@ -52,13 +53,21 @@ def test_merge_noise(burst_infos, tmp_path):
     noise = Noise(burst_infos, 1)
     noise.assemble()
     noise.write(out_path)
-    validate_xml(out_path, xsd_file)
+    assert validate_xml(out_path, xsd_file)
 
 
 def test_merge_product(burst_infos, tmp_path):
     out_path = tmp_path / 'file-001.xml'
     xsd_file = XSD_DIR / 's1-level-1-product.xsd'
-    noise = Product(burst_infos, 1)
-    noise.assemble()
-    noise.write(out_path)
-    validate_xml(out_path, xsd_file)
+    product = Product(burst_infos, 1)
+    product.assemble()
+
+    # Add back in omitted fields
+    product.update_data_stats(1 + 1j, 2 + 2j)
+    burst_elems = product.xml.findall('.//byteOffset')
+    for burst_elem in burst_elems:
+        burst_elem.text = '1'
+    product.xml.find('generalAnnotation/productInformation/platformHeading').text = '0.1'
+
+    product.write(out_path)
+    assert validate_xml(out_path, xsd_file)

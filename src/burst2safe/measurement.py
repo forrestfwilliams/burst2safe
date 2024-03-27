@@ -21,9 +21,11 @@ class Measurement:
         self.burst_width = burst_infos[0].width
         self.total_width = self.burst_width
         self.total_length = self.burst_length * len(burst_infos)
+        self.data_mean = None
+        self.data_std = None
 
     def get_data(self, band: int = 1) -> np.ndarray:
-        data = np.zeros((self.total_length, self.total_width), dtype=np.csingle)
+        data = np.zeros((self.total_length, self.total_width), dtype=np.complex64)
         for i, burst_info in enumerate(self.burst_infos):
             ds = gdal.Open(str(burst_info.data_path))
             data[i * self.burst_length : (i + 1) * self.burst_length, :] = ds.GetRasterBand(band).ReadAsArray()
@@ -43,6 +45,7 @@ class Measurement:
 
         ds.SetGCPs(gdal_gcps, srs.ExportToWkt())
         ds.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
+        # TODO make sure A/B is being set correctly.
         ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
         ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
         ds.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
@@ -59,6 +62,8 @@ class Measurement:
         mem_ds = None
         self.path = out_path
         if update_info:
+            self.data_mean = np.mean(data[data != 0])
+            self.data_std = np.std(data[data != 0])
             with open(self.path, 'rb') as f:
                 file_bytes = f.read()
                 self.size_bytes = len(file_bytes)

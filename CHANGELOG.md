@@ -7,6 +7,16 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.0]
+
+### Changed 
+* Refactored to a class-based architecture.
+* Updated the README to be actually useful.
+
+### Added
+* Support for multi-SLC workflows.
+* Correct handling of hard-to-compute fields.
+
 ## [0.1.0]
 
 ### Added
@@ -15,10 +25,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.0.1]
 
 ### Added
-* Create project structure and CI/CD tooling
+* Create project structure and CI/CD tooling.
 
 ## [0.0.0]
 
 ### Added
-* Initial version of project
+* Initial version of project.
 
