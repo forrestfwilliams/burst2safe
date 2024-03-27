@@ -61,9 +61,9 @@ def test_merge_product(burst_infos, tmp_path):
     xsd_file = XSD_DIR / 's1-level-1-product.xsd'
     product = Product(burst_infos, 1)
     product.assemble()
-    
+
     # Add back in omitted fields
-    product.update_data_stats(1+1j, 2+2j)
+    product.update_data_stats(1 + 1j, 2 + 2j)
     burst_elems = product.xml.findall('.//byteOffset')
     for burst_elem in burst_elems:
         burst_elem.text = '1'
