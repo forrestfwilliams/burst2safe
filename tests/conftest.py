@@ -29,8 +29,6 @@ def burst_info1():
         ),
         start_utc=datetime(2020, 6, 4, 2, 23, 12, 933265),
         stop_utc=datetime(2020, 6, 4, 2, 23, 16, 37825),
-        length=1510,
-        width=25448,
     )
     return burst_info
 
@@ -55,8 +53,6 @@ def burst_info2():
         ),
         start_utc=datetime(2020, 6, 4, 2, 23, 15, 697989),
         stop_utc=datetime(2020, 6, 4, 2, 23, 18, 802549),
-        length=1510,
-        width=25448,
     )
     return burst_info
 
