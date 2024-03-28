@@ -50,7 +50,7 @@ class Swath:
         polarizations = set([x.polarization for x in burst_infos])
         if len(polarizations) != 1:
             raise ValueError(f'All bursts must have the same polarization. Found: {polarizations}.')
-        
+
         burst_ids = [x.burst_id for x in burst_infos]
         burst_ids.sort()
         if burst_ids != list(range(min(burst_ids), max(burst_ids) + 1)):
