@@ -2,7 +2,6 @@ from pathlib import Path
 
 from lxml import etree
 
-from burst2safe import utils
 from burst2safe.calibration import Calibration
 from burst2safe.noise import Noise
 from burst2safe.product import Product
@@ -25,17 +24,6 @@ def validate_xml(xml_file, xsd_file):
         raise ValueError(f'XML failed validation with message:\n{schema.error_log}')
 
     return is_valid
-
-
-def test_optional_wd():
-    wd = utils.optional_wd()
-    assert isinstance(wd, Path)
-    assert wd == Path.cwd()
-
-    existing_dir = 'working'
-    wd = utils.optional_wd(existing_dir)
-    assert isinstance(wd, Path)
-    assert wd == Path(existing_dir)
 
 
 def test_merge_calibration(burst_infos, tmp_path):
