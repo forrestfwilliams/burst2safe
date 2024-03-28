@@ -33,14 +33,28 @@ class Swath:
         self.calibration_name = self.safe_path / 'annotation' / 'calibration' / f'calibration-{self.name}.xml'
 
     @staticmethod
-    def check_burst_group_validity(burst_infos):
+    def check_burst_group_validity(burst_infos: Iterable[BurstInfo]):
+        granules = [x.granule for x in burst_infos]
+        duplicates = list(set([x for x in granules if granules.count(x) > 1]))
+        if duplicates:
+            raise ValueError(f'Found duplicate granules: {duplicates}.')
+
+        orbits = set([x.absolute_orbit for x in burst_infos])
+        if len(orbits) != 1:
+            raise ValueError(f'All bursts must have the same absolute orbit. Found: {orbits}.')
+
         swaths = set([x.swath for x in burst_infos])
         if len(swaths) != 1:
-            raise ValueError('All bursts must be from the same swath.')
+            raise ValueError(f'All bursts must be from the same swath. Found: {swaths}.')
 
         polarizations = set([x.polarization for x in burst_infos])
         if len(polarizations) != 1:
-            raise ValueError('All bursts must have the same polarization.')
+            raise ValueError(f'All bursts must have the same polarization. Found: {polarizations}.')
+
+        burst_ids = [x.burst_id for x in burst_infos]
+        burst_ids.sort()
+        if burst_ids != list(range(min(burst_ids), max(burst_ids) + 1)):
+            raise ValueError(f'All bursts must have consecutive burst IDs. Found: {burst_ids}.')
 
     def get_name(self) -> str:
         swath = self.swath.lower()
