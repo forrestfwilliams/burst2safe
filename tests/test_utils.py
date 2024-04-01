@@ -41,17 +41,6 @@ def test_add_start_stop_utc(burst_info1):
         assert tmp_burst.stop_utc == datetime.fromisoformat('2020-01-01T00:00:10.09')
 
 
-def test_optional_wd():
-    wd = utils.optional_wd()
-    assert isinstance(wd, Path)
-    assert wd == Path.cwd()
-
-    existing_dir = 'working'
-    wd = utils.optional_wd(existing_dir)
-    assert isinstance(wd, Path)
-    assert wd == Path(existing_dir)
-
-
 def test_create_burst_info(tmp_path, search_result1):
     burst_granule = 'S1_136231_IW2_20200604T022312_VV_7C85-BURST'
     slc_granule = 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85'
@@ -100,3 +89,14 @@ def test_sort_burst_infos():
     assert sorted_infos['IW1']['HH'] == [info2, info6]
     assert sorted_infos['IW2']['VV'] == [info3, info7]
     assert sorted_infos['IW2']['HH'] == [info4, info8]
+
+
+def test_optional_wd():
+    wd = utils.optional_wd()
+    assert isinstance(wd, Path)
+    assert wd == Path.cwd()
+
+    existing_dir = 'working'
+    wd = utils.optional_wd(existing_dir)
+    assert isinstance(wd, Path)
+    assert wd == Path(existing_dir)
