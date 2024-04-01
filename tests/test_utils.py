@@ -1,3 +1,4 @@
+from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -76,6 +77,26 @@ def test_get_burst_infos(burst_info1):
     with patch.object(utils, 'create_burst_info') as mock_create:
         mock_create.return_value = burst_info1
         infos = utils.get_burst_infos(['granule1', 'granule2'], Path(''))
-    
+
     assert isinstance(infos, list)
     assert len(infos) == 2
+
+
+def test_sort_burst_infos():
+    StubInfo = namedtuple('StubInfo', ['swath', 'polarization', 'burst_id'])
+    info1 = StubInfo('IW1', 'VV', 1)
+    info2 = StubInfo('IW1', 'HH', 1)
+    info3 = StubInfo('IW2', 'VV', 1)
+    info4 = StubInfo('IW2', 'HH', 1)
+    info5 = StubInfo('IW1', 'VV', 2)
+    info6 = StubInfo('IW1', 'HH', 2)
+    info7 = StubInfo('IW2', 'VV', 2)
+    info8 = StubInfo('IW2', 'HH', 2)
+    infos = [info1, info3, info5, info2, info8, info4, info6, info7]
+
+    sorted_infos = utils.sort_burst_infos(infos)
+
+    assert sorted_infos['IW1']['VV'] == [info1, info5]
+    assert sorted_infos['IW1']['HH'] == [info2, info6]
+    assert sorted_infos['IW2']['VV'] == [info3, info7]
+    assert sorted_infos['IW2']['HH'] == [info4, info8]
