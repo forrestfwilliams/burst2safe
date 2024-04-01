@@ -54,7 +54,7 @@ class BurstInfo:
         self.stop_utc = self.start_utc + burst_time_interval
 
 
-def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
+def create_burst_info(granule: str, work_dir: Path) -> BurstInfo:
     results = asf_search.search(product_list=[granule])
     if len(results) == 0:
         raise ValueError(f'ASF Search failed to find {granule}.')
@@ -99,7 +99,7 @@ def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
     return burst_info
 
 
-def gather_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
+def get_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
     """Get burst information from ASF Search.
 
     Args:
@@ -111,7 +111,7 @@ def gather_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInf
     work_dir = optional_wd(work_dir)
     burst_info_list = []
     for granule in granules:
-        burst_info = get_burst_info(granule, work_dir)
+        burst_info = create_burst_info(granule, work_dir)
         burst_info_list.append(burst_info)
 
     return burst_info_list

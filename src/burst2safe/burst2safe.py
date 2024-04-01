@@ -10,7 +10,7 @@ import asf_search
 import numpy as np
 
 from burst2safe.safe import Safe, Swath
-from burst2safe.utils import BurstInfo, gather_burst_infos, optional_wd
+from burst2safe.utils import BurstInfo, get_burst_infos, optional_wd
 
 
 warnings.filterwarnings('ignore')
@@ -62,7 +62,7 @@ def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> Path
     work_dir = optional_wd(work_dir)
 
     print(f'Gathering information for {len(granules)} burst(s)...')
-    burst_infos = gather_burst_infos(granules, work_dir)
+    burst_infos = get_burst_infos(granules, work_dir)
     print('Check burst group validity...')
     check_group_validity(burst_infos)
 
