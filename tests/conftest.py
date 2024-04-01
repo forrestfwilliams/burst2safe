@@ -1,12 +1,37 @@
 from datetime import datetime
 from pathlib import Path
 
+import asf_search
 import pytest
 
 from burst2safe.utils import BurstInfo
 
 
 TEST_DIR = Path(__file__).parent
+
+
+@pytest.fixture
+def search_result1():
+    product = asf_search.ASFProduct()
+    product.umm = {'InputGranules': ['S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85']}
+    product.properties.update(
+        {
+            'fileID': 'S1_136231_IW2_20200604T022312_VV_7C85-BURST',
+            'flightDirection': 'ascending',
+            'polarization': 'vv',
+            'orbit': 123,
+            'url': 'https://example.com/foo.zip',
+            'additionalUrls': ['https://example.com/foo.xml'],
+            'burst': {
+                'subswath': 'IW2',
+                'relativeBurstID': 123456,
+                'burstIndex': 7,
+            },
+        }
+    )
+    results = asf_search.ASFSearchResults([product])
+    results.searchComplete = True
+    return results
 
 
 @pytest.fixture

@@ -62,20 +62,23 @@ def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
         raise ValueError(f'ASF Search found multiple results for {granule}.')
     result = results[0]
 
-    burst_granule = result.properties['fileID']
     slc_granule = result.umm['InputGranules'][0].split('-')[0]
-    swath = result.properties['burst']['subswath'].upper()
+
+    burst_granule = result.properties['fileID']
+    direction = result.properties['flightDirection'].upper()
     polarization = result.properties['polarization'].upper()
+    absolute_orbit = int(result.properties['orbit'])
+    data_url = result.properties['url']
+    metadata_url = result.properties['additionalUrls'][0]
+
+    swath = result.properties['burst']['subswath'].upper()
     burst_id = int(result.properties['burst']['relativeBurstID'])
     burst_index = int(result.properties['burst']['burstIndex'])
-    direction = result.properties['flightDirection'].upper()
-    absolute_orbit = int(result.properties['orbit'])
+
     date_format = '%Y%m%dT%H%M%S'
     burst_time_str = burst_granule.split('_')[3]
     burst_time = datetime.strptime(burst_time_str, date_format)
-    data_url = result.properties['url']
     data_path = work_dir / f'{burst_granule}.tiff'
-    metadata_url = result.properties['additionalUrls'][0]
     metadata_path = work_dir / f'{slc_granule}_{polarization}.xml'
 
     burst_info = BurstInfo(
