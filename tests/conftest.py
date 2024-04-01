@@ -11,6 +11,11 @@ TEST_DIR = Path(__file__).parent
 
 
 @pytest.fixture
+def test_data_xml():
+    return TEST_DIR / 'test_data' / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
+
+
+@pytest.fixture
 def search_result1():
     product = asf_search.ASFProduct()
     product.umm = {'InputGranules': ['S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85']}
@@ -35,7 +40,7 @@ def search_result1():
 
 
 @pytest.fixture
-def burst_info1():
+def burst_info1(test_data_xml):
     burst_info = BurstInfo(
         granule='S1_136231_IW2_20200604T022312_VV_7C85-BURST',
         slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
@@ -49,9 +54,7 @@ def burst_info1():
         data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/7.tiff',
         data_path=Path(''),
         metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/7.xml',
-        metadata_path=Path(
-            TEST_DIR / 'test_data' / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
-        ),
+        metadata_path=test_data_xml,
         start_utc=datetime(2020, 6, 4, 2, 23, 12, 933265),
         stop_utc=datetime(2020, 6, 4, 2, 23, 16, 37825),
     )
@@ -59,7 +62,7 @@ def burst_info1():
 
 
 @pytest.fixture
-def burst_info2():
+def burst_info2(test_data_dir):
     burst_info = BurstInfo(
         granule='S1_136232_IW2_20200604T022315_VV_7C85-BURST',
         slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
@@ -73,9 +76,7 @@ def burst_info2():
         data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/8.tiff',
         data_path=Path(''),
         metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/8.xml',
-        metadata_path=Path(
-            TEST_DIR / 'test_data' / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
-        ),
+        metadata_path=test_data_xml,
         start_utc=datetime(2020, 6, 4, 2, 23, 15, 697989),
         stop_utc=datetime(2020, 6, 4, 2, 23, 18, 802549),
     )

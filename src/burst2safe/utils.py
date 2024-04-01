@@ -1,11 +1,11 @@
 import warnings
+from binascii import crc_hqx
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, List, Optional
 
 import asf_search
-import crcmod
 import lxml.etree as ET
 from osgeo import gdal
 
@@ -148,11 +148,10 @@ def calculate_crc16(file_path: Path):
     with open(file_path, 'rb') as f:
         data = f.read()
 
-    # TODO: this doesn't match the ESA checksum
-    crc16 = crcmod.predefined.mkPredefinedCrcFun('crc-16')
-    crc16_value = crc16(data)
-    crc16_hex = hex(crc16_value)[2:].zfill(4).upper()
-    return crc16_hex
+    # TODO: Currently not matching how ESA calculates CRC16
+    crc = crc_hqx(data, 0)
+    crc_hex = format(crc, '04X')
+    return crc_hex
 
 
 def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = None, polarization: str = None):
