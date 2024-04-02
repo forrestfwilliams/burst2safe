@@ -9,6 +9,9 @@ import lxml.etree as ET
 from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata
 
 
+SCHEMA = '{urn:ccsds:schema:xfdu:1}'
+
+
 class ListOfListElements:
     def __init__(
         self, inputs: List[ET.Element], start_line: Optional[int] = None, slc_lengths: Optional[List[int]] = None
@@ -90,8 +93,75 @@ class ListOfListElements:
         return new_element
 
 
+def create_content_unit(simple_name: str, unit_type: str, rep_id: str) -> ET.Element:
+    """Create a content unit element for a manifest.safe file.
+
+    Args:
+        simple_name: The simple name of the content unit.
+        unit_type: The type of the content unit.
+        rep_id: The representation ID.
+
+    Returns:
+        The content unit element.
+    """
+    content_unit = ET.Element(f'{SCHEMA}contentUnit')
+    content_unit.set('unitType', unit_type)
+    content_unit.set('repID', rep_id)
+    ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
+    return content_unit
+
+
+def create_metadata_object(simple_name: str) -> ET.Element:
+    """Create a metadata object element for a manifest.safe file.
+
+    Args:
+        simple_name: The simple name of the metadata object.
+
+    Returns:
+        The metadata object element.
+    """
+    metadata_object = ET.Element('metadataObject')
+    metadata_object.set('ID', f'{simple_name}Annotation')
+    metadata_object.set('classification', 'DESCRIPTION')
+    metadata_object.set('category', 'DMD')
+    ET.SubElement(metadata_object, 'dataObjectPointer', dataObjectID=simple_name)
+    return metadata_object
+
+
+def create_data_object(
+    simple_name: str, relative_path: Path, rep_id: str, mime_type: str, size_bytes: int, md5: str
+) -> ET.Element:
+    """Create a data object element for a manifest.safe file.
+
+    Args:
+        simple_name: The simple name of the data object.
+        relative_path: The relative path to the data object.
+        rep_id: The representation ID.
+        mime_type: The MIME type of the data object.
+        size_bytes: The size of the data object in bytes.
+        md5: The MD5 checksum of the data object.
+
+    Returns:
+        The data object element.
+    """
+    data_object = ET.Element('dataObject')
+    data_object.set('ID', simple_name)
+    data_object.set('repID', rep_id)
+    byte_stream = ET.SubElement(data_object, 'byteStream')
+    byte_stream.set('mimeType', mime_type)
+    byte_stream.set('size', str(size_bytes))
+    file_location = ET.SubElement(byte_stream, 'fileLocation')
+    file_location.set('locatorType', 'URL')
+    file_location.set('href', f'./{relative_path}')
+    checksum = ET.SubElement(byte_stream, 'checksum')
+    checksum.set('checksumName', 'MD5')
+    checksum.text = md5
+    return data_object
+
+
 class Annotation:
     def __init__(self, burst_infos: Iterable[BurstInfo], metadata_type: str, image_number: int):
+        """Initialize the Annotation object."""
         self.burst_infos = burst_infos
         self.metadata_type = metadata_type
         self.image_number = image_number
@@ -119,7 +189,12 @@ class Annotation:
         self.ads_header = None
         self.xml = None
 
+        # these attributes are updated when the annotation is written to a file
+        self.size_bytes = None
+        self.md5 = None
+
     def create_ads_header(self):
+        """Create the ADS header for the annotation."""
         ads_header = deepcopy(self.inputs[0].find('adsHeader'))
         ads_header.find('startTime').text = self.min_anx.isoformat()
         ads_header.find('stopTime').text = self.max_anx.isoformat()
@@ -127,6 +202,12 @@ class Annotation:
         self.ads_header = ads_header
 
     def write(self, out_path: Path, update_info=True) -> None:
+        """Write the annotation to a file.
+
+        Args:
+            out_path: The path to write the annotation to.
+            update_info: Whether to update the size and md5 attributes of the annotation.
+        """
         self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
         if update_info:
@@ -137,6 +218,11 @@ class Annotation:
                 self.md5 = hashlib.md5(file_bytes).hexdigest()
 
     def __str__(self, **kwargs):
+        """Return the XML string representation of the annotation.
+
+        Args:
+            kwargs: Keyword arguments to pass to the lxml
+        """
         xml_str = ET.tostring(self.xml, pretty_print=True, **kwargs)
         return xml_str.decode()
 
@@ -145,38 +231,17 @@ class Annotation:
         unit_type = 'Metadata Unit'
         mime_type = 'text/xml'
 
-        schema = '{urn:ccsds:schema:xfdu:1}'
         rep_id = f's1Level1{self.metadata_type.capitalize()}Schema'
         simple_name = self.path.with_suffix('').name.replace('-', '')
         if self.metadata_type == 'product':
             simple_name = f'product{simple_name}'
 
-        content_unit = ET.Element(f'{schema}contentUnit')
-        content_unit.set('unitType', unit_type)
-        content_unit.set('repID', rep_id)
-        ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
-
-        metadata_object = ET.Element('metadataObject')
-        metadata_object.set('ID', f'{simple_name}Annotation')
-        metadata_object.set('classification', 'DESCRIPTION')
-        metadata_object.set('category', 'DMD')
-        ET.SubElement(metadata_object, 'dataObjectPointer', dataObjectID=simple_name)
-
         safe_index = [i for i, x in enumerate(self.path.parts) if 'SAFE' in x][-1]
         safe_path = Path(*self.path.parts[: safe_index + 1])
-        relative_path = self.path.relative_to(safe_path)
+        rel_path = self.path.relative_to(safe_path)
 
-        data_object = ET.Element('dataObject')
-        data_object.set('ID', simple_name)
-        data_object.set('repID', rep_id)
-        byte_stream = ET.SubElement(data_object, 'byteStream')
-        byte_stream.set('mimeType', mime_type)
-        byte_stream.set('size', str(self.size_bytes))
-        file_location = ET.SubElement(byte_stream, 'fileLocation')
-        file_location.set('locatorType', 'URL')
-        file_location.set('href', f'./{relative_path}')
-        checksum = ET.SubElement(byte_stream, 'checksum')
-        checksum.set('checksumName', 'MD5')
-        checksum.text = self.md5
+        content_unit = create_content_unit(simple_name, unit_type, rep_id)
+        metadata_object = create_metadata_object(simple_name)
+        data_object = create_data_object(simple_name, rel_path, rep_id, mime_type, self.size_bytes, self.md5)
 
         return content_unit, metadata_object, data_object
