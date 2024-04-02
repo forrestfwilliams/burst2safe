@@ -38,7 +38,7 @@ class Measurement:
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
 
-        manifest = get_subxml_from_metadata(self.burst_infos[0].metadata_path, 'manifest')[1]
+        manifest = get_subxml_from_metadata(self.burst_infos[0].metadata_path, 'manifest')
         software = 'Sentinel-1 IPF'
         version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == software][0]
         software_version = f'{software} {version_xml.get("version")}'

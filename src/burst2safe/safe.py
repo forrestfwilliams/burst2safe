@@ -248,7 +248,7 @@ class Manifest:
         for metadata_object in self.metadata_objects:
             metadata_section.append(metadata_object)
 
-        first_manifest = get_subxml_from_metadata(self.safe.burst_infos[0].metadata_path, 'manifest')[1]
+        first_manifest = get_subxml_from_metadata(self.safe.burst_infos[0].metadata_path, 'manifest')
         ids_to_keep = [
             'processing',
             'platform',

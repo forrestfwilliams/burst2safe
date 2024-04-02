@@ -106,7 +106,7 @@ def test_optional_wd():
 
 @pytest.mark.skip(reason='Cannot figure out how ESA calculates the CRC16')
 def test_calculate_crc16(tmp_path, test_data_xml):
-    manifest = utils.get_subxml_from_metadata(test_data_xml, 'manifest')[1]
+    manifest = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
     manifest_tree = ET.ElementTree(manifest)
     ET.indent(manifest_tree, space='  ')
     manifest_file = tmp_path / 'manifest.safe'
@@ -117,9 +117,35 @@ def test_calculate_crc16(tmp_path, test_data_xml):
     assert crc == '7C85'
 
 
-# @pytest.mark.parametrize('xml_type', ['product', 'noise', 'calibration', 'rfi'])
-# def test_get_subxml_from_metadata(xml_type, test_data_xml):
-#     result = utils.get_subxml_from_metadata(test_data_xml, xml_type, 'IW2', 'VV')
-#     breakpoint()
-#     assert isinstance(lxml.etree._Element, result)
-#     assert result.tag == xml_type
+@pytest.mark.parametrize('xml_type, swath', [('product', 'IW1'), ('noise', 'IW2'), ('calibration', 'IW3')])
+def test_get_subxml_from_metadata(xml_type, swath, test_data_xml):
+    result = utils.get_subxml_from_metadata(test_data_xml, xml_type, swath, 'VV')
+    assert isinstance(result, lxml.etree._Element)
+    assert result.find('adsHeader/swath').text == swath
+    assert result.find('adsHeader/polarisation').text == 'VV'
+    assert result.tag == 'content'
+
+
+def test_get_subxml_from_metadata_invalid(test_data_xml):
+    with pytest.raises(ValueError):
+        utils.get_subxml_from_metadata(test_data_xml, 'invalid', 'IW1', 'VV')
+
+    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'invalid', 'VV')
+    assert result is None
+
+    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'IW1', 'invalid')
+    assert result is None
+
+
+def test_get_subxml_from_metadata_manifest(test_data_xml):
+    result = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
+    assert isinstance(result, lxml.etree._Element)
+    assert result.tag == '{urn:ccsds:schema:xfdu:1}XFDU'
+
+
+def test_flatten():
+    assert utils.flatten([[1, 2], [3, 4], [5, 6]]) == [1, 2, 3, 4, 5, 6]
+
+
+def test_drop_duplicates():
+    assert utils.drop_duplicates([1, 2, 3, 4, 4, 5, 6, 6]) == [1, 2, 3, 4, 5, 6]

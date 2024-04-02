@@ -170,9 +170,8 @@ def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = 
         metadata = ET.parse(metadata_file).getroot()
 
     if xml_type == 'manifest':
-        name = 'manifest.safe'
         desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
-        return name, desired_metadata
+        return desired_metadata
 
     possible_types = ['product', 'noise', 'calibration', 'rfi']
     if xml_type not in possible_types:
