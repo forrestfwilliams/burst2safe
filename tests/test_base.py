@@ -125,3 +125,4 @@ class TestAnnotation:
         assert data_object.find('byteStream').get('size') == '1000'
         assert data_object.find('byteStream') == 'text/xml'
         # assert data_object.find('checkSum') == 'md5hash'
+        # TODO: continue adding checks
