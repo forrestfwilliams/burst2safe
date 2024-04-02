@@ -3,7 +3,7 @@ from binascii import crc_hqx
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import asf_search
 import lxml.etree as ET
@@ -55,6 +55,12 @@ class BurstInfo:
 
 
 def create_burst_info(granule: str, work_dir: Path) -> BurstInfo:
+    """Create a BurstInfo object given a granule.
+
+    Args:
+        granule: The granule to get information for.
+        work_dir: The directory to save the data to.
+    """
     results = asf_search.search(product_list=[granule])
     if len(results) == 0:
         raise ValueError(f'ASF Search failed to find {granule}.')
@@ -117,7 +123,15 @@ def get_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
     return burst_info_list
 
 
-def sort_burst_infos(burst_info_list):
+def sort_burst_infos(burst_info_list: List[BurstInfo]) -> Dict:
+    """Sort BurstInfo objects by swath and polarization.
+
+    Args:
+        burst_info_list: List of BurstInfo objects.
+
+    Returns:
+        Dictionary of sorted BurstInfo objects. First key is swath, second key is polarization.
+    """
     burst_infos = {}
     for burst_info in burst_info_list:
         if burst_info.swath not in burst_infos:
@@ -136,15 +150,29 @@ def sort_burst_infos(burst_info_list):
     return burst_infos
 
 
-def optional_wd(wd: Optional[Path | str] = None) -> None:
-    """Return the working directory as a Path object"""
+def optional_wd(wd: Optional[Path | str] = None) -> Path:
+    """Return the working directory as a Path object
+
+    Args:
+        wd: Optional working directory as a Path or string
+
+    Returns:
+        Path to your input working directory or the current working directory.
+    """
     if wd is None:
         wd = Path.cwd()
     return Path(wd)
 
 
-def calculate_crc16(file_path: Path):
-    """Calculate the CRC16 checksum for a file."""
+def calculate_crc16(file_path: Path) -> str:
+    """Calculate the CRC16 checksum for a file.
+
+    Args:
+        file_path: Path to file to calculate checksum for
+
+    Returns:
+        CRC16 checksum as a hexadecimal string
+    """
     with open(file_path, 'rb') as f:
         data = f.read()
 
@@ -154,7 +182,9 @@ def calculate_crc16(file_path: Path):
     return crc_hex
 
 
-def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = None, polarization: str = None):
+def get_subxml_from_metadata(
+    metadata_path: Path, xml_type: str, subswath: str = None, polarization: str = None
+) -> ET.Element:
     """Extract child xml info from ASF combined metadata file.
 
     Args:
@@ -192,9 +222,11 @@ def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = 
     return desired_metadata
 
 
-def flatten(list_of_lists: List[List]):
+def flatten(list_of_lists: List[List]) -> List:
+    """Flatten a list of lists."""
     return [item for sublist in list_of_lists for item in sublist]
 
 
-def drop_duplicates(input_list: List):
+def drop_duplicates(input_list: List) -> List:
+    """Drop duplicates from a list, while preserving order."""
     return list(dict.fromkeys(input_list))
