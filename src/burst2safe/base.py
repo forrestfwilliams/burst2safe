@@ -6,7 +6,7 @@ from typing import Iterable, List, Optional
 
 import lxml.etree as ET
 
-from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata
+from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, set_text
 
 
 SCHEMA = '{urn:ccsds:schema:xfdu:1}'
@@ -16,6 +16,13 @@ class ListOfListElements:
     def __init__(
         self, inputs: List[ET.Element], start_line: Optional[int] = None, slc_lengths: Optional[List[int]] = None
     ):
+        """Initialize the ListOfListElements object.
+
+        Args:
+            inputs: The list of elements to be processed.
+            start_line: The starting line number of the first element.
+            slc_lengths: The total line lengths of the SLCs corresponding to each element.
+        """
         self.inputs = inputs
         self.start_line = start_line
         self.slc_lengths = slc_lengths
@@ -38,38 +45,72 @@ class ListOfListElements:
 
         self.has_line = elements[0].find('line') is not None
 
-    def get_nonduplicate_elements(self):
+    def get_unique_elements(self) -> List[ET.Element]:
+        """Get the elements without duplicates. Adjust line number if present.
+
+        Returns:
+            The list of elements without duplicates.
+        """
         list_of_element_lists = [item.findall('*') for item in self.inputs]
-        for i in range(len(list_of_element_lists)):
-            if i == 0:
-                last_time = datetime.fromisoformat(list_of_element_lists[i][-1].find(self.time_field).text)
-                remaining_elements = [deepcopy(element) for element in list_of_element_lists[i]]
-                continue
 
-            for element in list_of_element_lists[i]:
-                current_time = datetime.fromisoformat(element.find(self.time_field).text)
-                if current_time > last_time:
-                    new_element = deepcopy(element)
-                    if self.has_line:
-                        new_line = int(new_element.find('line').text) + (i * self.slc_lengths[i - 1])
-                        new_element.find('line').text = str(new_line)
-                    remaining_elements.append(new_element)
-                    last_time = current_time
+        last_time = datetime.fromisoformat(list_of_element_lists[0][-1].find(self.time_field).text)
+        uniques = [deepcopy(element) for element in list_of_element_lists[0]]
+        if self.has_line:
+            previous_line_count = self.slc_lengths[0]
 
-        return remaining_elements
+        for i, element_list in enumerate(list_of_element_lists[1:]):
+            times = [datetime.fromisoformat(element.find(self.time_field).text) for element in element_list]
+            keep_index = [index for index, time in enumerate(times) if time > last_time]
+            to_keep = [deepcopy(element_list[index]) for index in keep_index]
+
+            if self.has_line:
+                new_lines = [int(elem.find('line').text) + previous_line_count for elem in to_keep]
+                [set_text(elem.find('line'), line) for elem, line in zip(to_keep, new_lines)]
+                previous_line_count += self.slc_lengths[i]
+
+            last_time = max([times[index] for index in keep_index])
+            uniques += to_keep
+
+        return uniques
+
+    @staticmethod
+    def filter_by_line(element_list: List[ET.Element], line_bounds: tuple[float, float]) -> List[ET.Element]:
+        """Filter elements by line number.
+
+        Args:
+            line_bounds: The bounds of the line numbers.
+
+        Returns:
+            A filtered element list.
+        """
+
+        new_list = []
+        for elem in element_list:
+            if line_bounds[0] <= int(elem.find('line').text) <= line_bounds[1]:
+                new_list.append(deepcopy(elem))
+        return new_list
 
     def create_filtered_list(
         self,
         anx_bounds: Optional[tuple[float, float]] = None,
         buffer: Optional[timedelta] = timedelta(seconds=3),
         line_bounds: Optional[tuple[float, float]] = None,
-    ) -> List[ET.Element]:
-        """Filter elements by time. Adjust line number if present."""
+    ) -> ET.Element:
+        """Filter elements by time/line. Adjust line number if present.
+
+        Args:
+            anx_bounds: The bounds of the ANX time.
+            buffer: The buffer to add to the ANX bounds.
+            line_bounds: The bounds of the line numbers.
+
+        Returns:
+            A filtered list element.
+        """
 
         min_anx_bound = anx_bounds[0] - buffer
         max_anx_bound = anx_bounds[1] + buffer
 
-        elements = self.get_nonduplicate_elements()
+        elements = self.get_unique_elements()
 
         filtered_elements = []
         for element in elements:
@@ -82,13 +123,13 @@ class ListOfListElements:
                 standard_line = int(element.find('line').text)
                 element.find('line').text = str(standard_line - self.start_line)
 
+        if line_bounds is not None:
+            if not self.has_line:
+                raise ValueError('Line bounds cannot be applied to elements without line numbers.')
+            filtered_elements = self.filter_by_line(filtered_elements, line_bounds)
+
         new_element = ET.Element(self.name)
-        for element in filtered_elements:
-            if line_bounds is None:
-                new_element.append(element)
-            else:
-                if line_bounds[0] <= int(element.find('line').text) <= line_bounds[1]:
-                    new_element.append(element)
+        [new_element.append(element) for element in filtered_elements]
         new_element.set('count', str(len(filtered_elements)))
         return new_element
 

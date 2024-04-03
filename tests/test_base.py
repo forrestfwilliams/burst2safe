@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import lxml.etree as ET
@@ -13,6 +14,63 @@ IMAGE_NUMBER = 1
 @pytest.fixture
 def annotation(burst_infos):
     return base.Annotation(burst_infos, METADATA_TYPE, IMAGE_NUMBER)
+
+
+@pytest.fixture
+def elem_lists():
+    start_time1 = datetime.fromisoformat('2020-01-01T00:00:00')
+    elem_list1 = ET.Element('fooList')
+
+    elem_list2 = ET.Element('fooList')
+    start_time2 = datetime.fromisoformat('2020-01-01T00:01:00')
+
+    for i in range(5):
+        for elem_list, start_time in zip([elem_list1, elem_list2], [start_time1, start_time2]):
+            element = ET.Element('foo')
+            time = (start_time + timedelta(seconds=i * 15)).isoformat()
+            ET.SubElement(element, 'azimuthTime').text = time
+            ET.SubElement(element, 'line').text = str(i * 100)
+            elem_list.append(element)
+
+    elem_list2.remove(elem_list2[-1])
+    return [elem_list1, elem_list2]
+
+
+class TestListOfListElements:
+    def test_init(self, elem_lists):
+        start_line = 100
+        slc_lengths = [400, 300]
+        list_of_lists = base.ListOfListElements(elem_lists, start_line, slc_lengths)
+        assert list_of_lists.name == 'fooList'
+        assert list_of_lists.subelement_name == 'foo'
+        assert list_of_lists.time_field == 'azimuthTime'
+        assert list_of_lists.has_line is True
+
+    def test_get_unique_elements(self, elem_lists):
+        slc_lengths = [400, 300]
+        list_of_lists = base.ListOfListElements(elem_lists, slc_lengths=slc_lengths)
+        remaining_elements = list_of_lists.get_unique_elements()
+        assert len(remaining_elements) == 8
+
+        lines = [x.find('line').text for x in remaining_elements]
+        assert lines == ['0', '100', '200', '300', '400', '500', '600', '700']
+
+    def test_create_time_filtered_list(self, elem_lists):
+        start_line = 100
+        slc_lengths = [400, 300]
+        list_of_lists = base.ListOfListElements(elem_lists, start_line, slc_lengths)
+
+        time1 = datetime.fromisoformat('2020-01-01T00:00:15')
+        time2 = datetime.fromisoformat('2020-01-01T00:01:15')
+        filtered = list_of_lists.create_filtered_list([time1, time2])
+        assert len(filtered) == 5
+        lines = [x.find('line').text for x in filtered]
+        assert lines == ['0', '100', '200', '300', '400']
+
+        filtered = list_of_lists.create_filtered_list([time1, time2], line_bounds=[200, 300])
+        assert len(filtered) == 2
+        lines = [x.find('line').text for x in filtered]
+        assert lines == ['200', '300']
 
 
 def test_create_content_unit():
@@ -78,8 +136,8 @@ class TestAnnotation:
         assert annotation.metadata_paths == [burst_infos[0].metadata_path]
         assert annotation.swath == burst_infos[0].swath
         assert annotation.pol == burst_infos[0].polarization
-        assert annotation.start_line == 700
-        assert annotation.stop_line == 900
+        assert annotation.start_line == 7 * 1510
+        assert annotation.stop_line == 9 * 1510
 
     def test_create_ads_header(self, annotation):
         assert annotation.ads_header is None

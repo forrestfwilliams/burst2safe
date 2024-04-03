@@ -72,7 +72,7 @@ class Product(Annotation):
             list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
             if list_name == 'replicaInformationList':
                 lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
-                unique = lol.get_nonduplicate_elements()
+                unique = lol.get_unique_elements()
                 filtered = ET.Element('replicaInformationList')
                 filtered.set('count', str(len(unique)))
                 [filtered.append(element) for element in unique]

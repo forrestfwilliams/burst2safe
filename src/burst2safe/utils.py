@@ -230,3 +230,16 @@ def flatten(list_of_lists: List[List]) -> List:
 def drop_duplicates(input_list: List) -> List:
     """Drop duplicates from a list, while preserving order."""
     return list(dict.fromkeys(input_list))
+
+
+def set_text(element: ET.Element, text: str | int) -> None:
+    """Set the text of an element if it is not None.
+
+    Args:
+        element: The element to set the text of.
+        text: The text to set the element to.
+    """
+    if not isinstance(text, str) and not isinstance(text, int):
+        raise ValueError('Text must be a string or an integer.')
+
+    element.text = str(text)

@@ -57,7 +57,7 @@ def burst_info1(test_data_xml):
         metadata_path=test_data_xml,
         start_utc=datetime(2020, 6, 4, 2, 23, 12, 933265),
         stop_utc=datetime(2020, 6, 4, 2, 23, 16, 37825),
-        length=100,
+        length=1510,
     )
     return burst_info
 
@@ -80,7 +80,7 @@ def burst_info2(test_data_xml):
         metadata_path=test_data_xml,
         start_utc=datetime(2020, 6, 4, 2, 23, 15, 697989),
         stop_utc=datetime(2020, 6, 4, 2, 23, 18, 802549),
-        length=100,
+        length=1510,
     )
     return burst_info
 
