@@ -41,7 +41,8 @@ class ListOfListElements:
         elif 'time' in [x.tag for x in elements[0].iter()]:
             self.time_field = 'time'
         else:
-            raise ValueError('No time field found in element.')
+            raise ValueError('Time field not found in elements.')
+
 
         self.has_line = elements[0].find('line') is not None
 
@@ -90,9 +91,42 @@ class ListOfListElements:
                 new_list.append(deepcopy(elem))
         return new_list
 
+    def update_line_numbers(self, elements: List[ET.Element]) -> None:
+        """Update the line numbers of the elements.
+
+        Args:
+            elements: The list of elements to update.
+        """
+        for element in elements:
+            standard_line = int(element.find('line').text)
+            element.find('line').text = str(standard_line - self.start_line)
+
+    def filter_by_time(
+        self, elements: List[ET.Element], anx_bounds: tuple[float, float], buffer: timedelta
+    ) -> List[ET.Element]:
+        """Filter elements by time.
+
+        Args:
+            elements: The list of elements to filter.
+            anx_bounds: The bounds of the ANX time.
+            buffer: The buffer to add to the ANX bounds.
+
+        Returns:
+            A filtered element list.
+        """
+        min_anx_bound = anx_bounds[0] - buffer
+        max_anx_bound = anx_bounds[1] + buffer
+        filtered_elements = []
+        for element in elements:
+            azimuth_time = datetime.fromisoformat(element.find(self.time_field).text)
+            if min_anx_bound < azimuth_time < max_anx_bound:
+                filtered_elements.append(deepcopy(element))
+
+        return filtered_elements
+
     def create_filtered_list(
         self,
-        anx_bounds: Optional[tuple[float, float]] = None,
+        anx_bounds: Optional[tuple[float, float]],
         buffer: Optional[timedelta] = timedelta(seconds=3),
         line_bounds: Optional[tuple[float, float]] = None,
     ) -> ET.Element:
@@ -106,22 +140,11 @@ class ListOfListElements:
         Returns:
             A filtered list element.
         """
-
-        min_anx_bound = anx_bounds[0] - buffer
-        max_anx_bound = anx_bounds[1] + buffer
-
         elements = self.get_unique_elements()
-
-        filtered_elements = []
-        for element in elements:
-            azimuth_time = datetime.fromisoformat(element.find(self.time_field).text)
-            if min_anx_bound < azimuth_time < max_anx_bound:
-                filtered_elements.append(deepcopy(element))
+        filtered_elements = self.filter_by_time(elements, anx_bounds, buffer)
 
         if self.has_line:
-            for element in filtered_elements:
-                standard_line = int(element.find('line').text)
-                element.find('line').text = str(standard_line - self.start_line)
+            self.update_line_numbers(filtered_elements)
 
         if line_bounds is not None:
             if not self.has_line:

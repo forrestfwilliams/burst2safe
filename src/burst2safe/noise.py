@@ -4,7 +4,7 @@ from typing import Iterable
 import lxml.etree as ET
 import numpy as np
 
-from burst2safe.base import Annotation, ListOfListElements
+from burst2safe.base import Annotation
 from burst2safe.utils import BurstInfo, flatten
 
 
@@ -15,9 +15,7 @@ class Noise(Annotation):
         self.azimuth_vector_list = None
 
     def create_range_vector_list(self):
-        rg_vectors = [noise.find('noiseRangeVectorList') for noise in self.inputs]
-        rg_vector_lol = ListOfListElements(rg_vectors, self.start_line, self.slc_lengths)
-        self.range_vector_list = rg_vector_lol.create_filtered_list([self.min_anx, self.max_anx])
+        self.range_vector_list = self.merge_lists('noiseRangeVectorList')
 
     def update_azimuth_vector(self, az_vector: ET.Element, line_offset: int):
         new_az_vector = deepcopy(az_vector)
