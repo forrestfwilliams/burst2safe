@@ -242,6 +242,20 @@ class Annotation:
         ads_header.find('imageNumber').text = f'{self.image_number:03d}'
         self.ads_header = ads_header
 
+    def merge_lists(self, list_name: str) -> ET.Element:
+        """Merge lists of elements into a single list.
+
+        Args:
+            list_name: The name of the list element.
+
+        Returns:
+            The merged list element.
+        """
+        list_elements = [input_xml.find(list_name) for input_xml in self.inputs]
+        list_of_list_elements = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
+        merged_list = list_of_list_elements.create_filtered_list([self.min_anx, self.max_anx])
+        return merged_list
+
     def write(self, out_path: Path, update_info=True) -> None:
         """Write the annotation to a file.
 

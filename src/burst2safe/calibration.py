@@ -3,7 +3,7 @@ from typing import Iterable
 
 import lxml.etree as ET
 
-from burst2safe.base import Annotation, ListOfListElements
+from burst2safe.base import Annotation
 from burst2safe.utils import BurstInfo
 
 
@@ -18,9 +18,7 @@ class Calibration(Annotation):
         self.calibration_information = deepcopy(calibration_information)
 
     def create_calibration_vector_list(self):
-        cal_vectors = [cal.find('calibrationVectorList') for cal in self.inputs]
-        cal_vector_lol = ListOfListElements(cal_vectors, self.start_line, self.slc_lengths)
-        self.calibration_vector_list = cal_vector_lol.create_filtered_list([self.min_anx, self.max_anx])
+        self.calibration_vector_list = self.merge_lists('calibrationVectorList')
 
     def assemble(self):
         self.create_ads_header()

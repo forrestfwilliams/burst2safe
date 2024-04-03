@@ -16,6 +16,12 @@ def test_data_xml():
 
 
 @pytest.fixture
+def xsd_dir():
+    xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data'
+    return xsd_dir
+
+
+@pytest.fixture
 def search_result1():
     product = asf_search.ASFProduct()
     product.umm = {'InputGranules': ['S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85']}

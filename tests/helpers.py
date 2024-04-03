@@ -1,3 +1,4 @@
+import lxml.etree as ET
 import numpy as np
 from osgeo import gdal, osr
 
@@ -21,3 +22,16 @@ def create_test_geotiff(output_file, dtype='float', shape=(10, 10, 1)):
         band = dataset.GetRasterBand(i + 1)
         band.WriteArray(data)
     dataset = None
+
+
+def validate_xml(xml_file, xsd_file):
+    xml_doc = ET.parse(xml_file)
+
+    xsd_doc = ET.parse(xsd_file)
+    schema = ET.XMLSchema(xsd_doc)
+
+    is_valid = schema.validate(xml_doc)
+    if not is_valid:
+        raise ValueError(f'XML failed validation with message:\n{schema.error_log}')
+
+    return is_valid
