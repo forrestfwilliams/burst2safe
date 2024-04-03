@@ -17,13 +17,7 @@ class Noise(Annotation):
     def create_range_vector_list(self):
         self.range_vector_list = self.merge_lists('noiseRangeVectorList')
 
-    def update_azimuth_vector(self, az_vector: ET.Element, line_offset: int):
-        new_az_vector = deepcopy(az_vector)
-        line_element = new_az_vector.find('line')
-
-        lines = np.array([int(x) for x in line_element.text.split(' ')])
-        lines += line_offset
-
+    def get_start_stop_indexes(self, lines: np.ndarray, line_offset: int) -> tuple[int, int]:
         first_line = 0
         if np.any(lines <= first_line):
             first_index = np.where(lines == lines[lines <= first_line].max())[0][0]
@@ -35,12 +29,21 @@ class Noise(Annotation):
             last_index = np.where(lines == lines[lines >= last_line].min())[0][0]
         else:
             last_index = lines.shape[0] - 1
+        return first_index, last_index
+
+    def update_azimuth_vector(self, az_vector: ET.Element, line_offset: int):
+        new_az_vector = deepcopy(az_vector)
+        line_element = new_az_vector.find('line')
+
+        lines = np.array([int(x) for x in line_element.text.split(' ')])
+        lines += line_offset
+
+        first_index, last_index = self.get_start_stop_indexes(lines, line_offset)
+        slice = np.s_[first_index : last_index + 1]
+        count = str(last_index - first_index + 1)
 
         new_az_vector.find('firstAzimuthLine').text = str(lines[first_index])
         new_az_vector.find('lastAzimuthLine').text = str(lines[last_index])
-
-        slice = np.s_[first_index : last_index + 1]
-        count = str(last_index - first_index + 1)
 
         line_element.text = ' '.join([str(x) for x in lines[slice]])
         line_element.set('count', count)
