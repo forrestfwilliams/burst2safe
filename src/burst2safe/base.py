@@ -43,7 +43,20 @@ class ListOfListElements:
         else:
             raise ValueError('Time field not found in elements.')
 
+        self.inputs = sorted(self.inputs, key=self.get_first_time)
         self.has_line = elements[0].find('line') is not None
+
+    def get_first_time(self, element: ET.Element) -> datetime:
+        """Get first time in List element
+
+        args:
+            element: The element to get the time from.
+
+        Returns:
+            The first time in the element.
+        """
+        first_time = min([datetime.fromisoformat(sub.find(self.time_field).text) for sub in element])
+        return first_time
 
     def get_unique_elements(self) -> List[ET.Element]:
         """Get the elements without duplicates. Adjust line number if present.

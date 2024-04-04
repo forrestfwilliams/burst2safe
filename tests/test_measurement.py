@@ -65,7 +65,7 @@ class TestMeasurement:
         assert mem_ds.GetGCPCount() == len(gcps)
         assert '4326' in mem_ds.GetGCPProjection()
         assert mem_ds.GetMetadataItem('TIFFTAG_DATETIME') is not None
-        assert mem_ds.GetMetadataItem('TIFFTAG_IMAGE_DESCRIPTION') == 'Sentinel-1A IW SLC L1'
+        assert mem_ds.GetMetadataItem('TIFFTAG_IMAGEDESCRIPTION') == 'Sentinel-1A IW SLC L1'
         assert mem_ds.GetMetadataItem('TIFFTAG_SOFTWARE') == 'Sentinel-1 IPF 003.20'
 
     def test_create_geotiff(self, burst_datas, gcps, tmp_path):

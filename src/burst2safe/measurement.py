@@ -49,7 +49,7 @@ class Measurement:
 
         ds.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
         # TODO make sure A/B is being set correctly.
-        ds.SetMetadataItem('TIFFTAG_IMAGE_DESCRIPTION', 'Sentinel-1A IW SLC L1')
+        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
 
         version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         software_version = f'Sentinel-1 IPF {version}'
