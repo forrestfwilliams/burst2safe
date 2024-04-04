@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-import lxml.etree as ET
 import numpy as np
 from osgeo import gdal, osr
 
@@ -87,25 +86,6 @@ class Measurement:
 
         content_unit = create_content_unit(simple_name, rep_id, unit_type)
         data_object = create_data_object(simple_name, relative_path, rep_id, mime_type, self.size_bytes, self.md5)
-
-        # content_unit = ET.Element(f'{schema}contentUnit')
-        # content_unit.set('unitType', unit_type)
-        # content_unit.set('repID', rep_id)
-        # ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
-
-        # data_object = ET.Element('dataObject')
-        # data_object.set('ID', simple_name)
-        # data_object.set('repID', rep_id)
-        # byte_stream = ET.SubElement(data_object, 'byteStream')
-        # byte_stream.set('mimeType', mime_type)
-        # byte_stream.set('size', str(self.size_bytes))
-        # file_location = ET.SubElement(byte_stream, 'fileLocation')
-        # file_location.set('locatorType', 'URL')
-        # file_location.set('href', f'./{relative_path}')
-        # checksum = ET.SubElement(byte_stream, 'checksum')
-        # checksum.set('checksumName', 'MD5')
-        # checksum.text = self.md5
-
         return content_unit, data_object
 
     def write(self, out_path):
