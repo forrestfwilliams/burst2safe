@@ -50,7 +50,7 @@ class Product(Annotation):
 
     def create_general_annotation(self):
         """Create the generalAnnotation element.
-        
+
         From product specification:
         The productInformation sub-record contains single value fields that
         are merged and included. All other sub-records contain lists which are
@@ -90,7 +90,7 @@ class Product(Annotation):
 
     def create_image_annotation(self):
         """Create the imageAnnotation element.
-        
+
         From product specification:
         This DSR contains two records which contain only single value fields.
         The fields in the imageInformation record are included and merged
@@ -136,9 +136,9 @@ class Product(Annotation):
         image_annotation.append(processing_information)
         self.image_annotation = image_annotation
 
-    def update_data_stats(self, data_mean: np.complex, data_std: np.complex):
+    def update_data_stats(self, data_mean: np.complex_, data_std: np.complex_):
         """Update the data statistics in the imageAnnotation element.
-        
+
         Args:
             data_mean: The complex mean of the data.
             data_std: The complex standard deviation of the data.
@@ -156,19 +156,13 @@ class Product(Annotation):
             elem.find(f'{base_path}StdDev/im').text = data_std_im
 
     def create_doppler_centroid(self):
-        dc_lists = [prod.find('dopplerCentroid/dcEstimateList') for prod in self.inputs]
-        dc_lol = ListOfListElements(dc_lists, self.start_line, self.slc_lengths)
-        filtered = dc_lol.create_filtered_list([self.min_anx, self.max_anx])
         doppler_centroid = ET.Element('dopplerCentroid')
-        doppler_centroid.append(filtered)
+        doppler_centroid.append(self.merge_lists('dopplerCentroid/dcEstimateList'))
         self.doppler_centroid = doppler_centroid
 
     def create_antenna_pattern(self):
-        pattern_lists = [prod.find('antennaPattern/antennaPatternList') for prod in self.inputs]
-        pattern_lol = ListOfListElements(pattern_lists, self.start_line, self.slc_lengths)
-        filtered = pattern_lol.create_filtered_list([self.min_anx, self.max_anx])
         antenna_pattern = ET.Element('antennaPattern')
-        antenna_pattern.append(filtered)
+        antenna_pattern.append(self.merge_lists('antennaPattern/antennaPatternList'))
         self.antenna_pattern = antenna_pattern
 
     def create_swath_timing(self):
@@ -191,15 +185,8 @@ class Product(Annotation):
         swath_timing.append(filtered)
         self.swath_timing = swath_timing
 
-    def create_geolocation_grid(self):
-        grid_points = [prod.find('geolocationGrid/geolocationGridPointList') for prod in self.inputs]
-        grid_point_lol = ListOfListElements(grid_points, self.start_line, self.slc_lengths)
-        filtered = grid_point_lol.create_filtered_list([self.min_anx, self.max_anx], line_bounds=[0, self.total_lines])
-        geolocation_grid = ET.Element('geolocationGrid')
-        geolocation_grid.append(filtered)
-        self.geolocation_grid = geolocation_grid
-
-        gcp_xmls = geolocation_grid.find('geolocationGridPointList').findall('*')
+    def update_gcps(self):
+        gcp_xmls = self.geolocation_grid.find('geolocationGridPointList').findall('*')
         for gcp_xml in gcp_xmls:
             gcp = GeoPoint(
                 float(gcp_xml.find('longitude').text),
@@ -209,6 +196,13 @@ class Product(Annotation):
                 int(gcp_xml.find('pixel').text),
             )
             self.gcps.append(gcp)
+
+    def create_geolocation_grid(self):
+        geolocation_grid = ET.Element('geolocationGrid')
+        grid_list = self.merge_lists('geolocationGrid/geolocationGridPointList', line_bounds=[0, self.total_lines])
+        geolocation_grid.append(grid_list)
+        self.geolocation_grid = geolocation_grid
+        self.update_gcps()
 
     def create_coordinate_conversion(self):
         coordinate_conversion = ET.Element('coordinateConversion')

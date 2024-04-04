@@ -43,7 +43,6 @@ class ListOfListElements:
         else:
             raise ValueError('Time field not found in elements.')
 
-
         self.has_line = elements[0].find('line') is not None
 
     def get_unique_elements(self) -> List[ET.Element]:
@@ -265,7 +264,7 @@ class Annotation:
         ads_header.find('imageNumber').text = f'{self.image_number:03d}'
         self.ads_header = ads_header
 
-    def merge_lists(self, list_name: str) -> ET.Element:
+    def merge_lists(self, list_name: str, line_bounds: Optional[tuple[int, int]] = None) -> ET.Element:
         """Merge lists of elements into a single list.
 
         Args:
@@ -276,7 +275,7 @@ class Annotation:
         """
         list_elements = [input_xml.find(list_name) for input_xml in self.inputs]
         list_of_list_elements = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
-        merged_list = list_of_list_elements.create_filtered_list([self.min_anx, self.max_anx])
+        merged_list = list_of_list_elements.create_filtered_list([self.min_anx, self.max_anx], line_bounds=line_bounds)
         return merged_list
 
     def write(self, out_path: Path, update_info=True) -> None:
