@@ -34,6 +34,7 @@ class Product(Annotation):
         self.gcps = []
 
     def create_quality_information(self):
+        """Create the qualityInformation element."""
         quality_information = ET.Element('qualityInformation')
         quality_information.append(deepcopy(self.inputs[0].find('qualityInformation/productQualityIndex')))
 
@@ -48,7 +49,10 @@ class Product(Annotation):
         self.quality_information = quality_information
 
     def create_general_annotation(self):
-        """The productInformation sub-record contains single value fields that
+        """Create the generalAnnotation element.
+        
+        From product specification:
+        The productInformation sub-record contains single value fields that
         are merged and included. All other sub-records contain lists which are
         concatenated. Details are presented in Table 3-11."""
         general_annotation = ET.Element('generalAnnotation')
@@ -85,7 +89,10 @@ class Product(Annotation):
         self.general_annotation = general_annotation
 
     def create_image_annotation(self):
-        """This DSR contains two records which contain only single value fields.
+        """Create the imageAnnotation element.
+        
+        From product specification:
+        This DSR contains two records which contain only single value fields.
         The fields in the imageInformation record are included and merged
         and all the fields for the processingInformation record are included;
         except for the inputDimensionsList record, which is concatenated.
@@ -129,7 +136,13 @@ class Product(Annotation):
         image_annotation.append(processing_information)
         self.image_annotation = image_annotation
 
-    def update_data_stats(self, data_mean, data_std):
+    def update_data_stats(self, data_mean: np.complex, data_std: np.complex):
+        """Update the data statistics in the imageAnnotation element.
+        
+        Args:
+            data_mean: The complex mean of the data.
+            data_std: The complex standard deviation of the data.
+        """
         base_path = 'imageInformation/imageStatistics/outputData'
         data_mean_re = f'{data_mean.real:.6e}'
         data_mean_im = f'{data_mean.imag:.6e}'
