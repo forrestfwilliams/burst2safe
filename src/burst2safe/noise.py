@@ -17,28 +17,39 @@ class Noise(Annotation):
     def create_range_vector_list(self):
         self.range_vector_list = self.merge_lists('noiseRangeVectorList')
 
-    def get_start_stop_indexes(self, lines: np.ndarray, line_offset: int) -> tuple[int, int]:
-        first_line = 0
+    @staticmethod
+    def _get_start_stop_indexes(lines: np.ndarray, last_line: int, first_line: int = 0) -> tuple[int, int]:
+        """Get the indexes of the first and last lines in the range of lines.
+
+        Args:
+            lines: Array of lines.
+            last_line: Last line of the range.
+            first_line: First line of the range. Defaults to 0.
+
+        Returns:
+            Tuple of the indexes of the first and last lines in the range.
+        """
         if np.any(lines <= first_line):
             first_index = np.where(lines == lines[lines <= first_line].max())[0][0]
         else:
             first_index = 0
 
-        last_line = self.stop_line - self.start_line - 1
         if np.any(lines >= last_line):
             last_index = np.where(lines == lines[lines >= last_line].min())[0][0]
         else:
             last_index = lines.shape[0] - 1
+
         return first_index, last_index
 
-    def update_azimuth_vector(self, az_vector: ET.Element, line_offset: int):
+    @staticmethod
+    def _update_azimuth_vector(az_vector: ET.Element, line_offset: int, start_line: int, stop_line: int):
         new_az_vector = deepcopy(az_vector)
-        line_element = new_az_vector.find('line')
 
+        line_element = new_az_vector.find('line')
         lines = np.array([int(x) for x in line_element.text.split(' ')])
         lines += line_offset
 
-        first_index, last_index = self.get_start_stop_indexes(lines, line_offset)
+        first_index, last_index = Noise._get_start_stop_indexes(lines, stop_line - start_line - 1)
         slice = np.s_[first_index : last_index + 1]
         count = str(last_index - first_index + 1)
 
@@ -62,7 +73,7 @@ class Noise(Annotation):
             updated_az_vector_set = []
             for az_vector in az_vectors:
                 line_offset = slc_offset - self.start_line
-                updated_az_vector = self.update_azimuth_vector(az_vector, line_offset)
+                updated_az_vector = self._update_azimuth_vector(az_vector, line_offset, self.start_line, self.stop_line)
                 updated_az_vector_set.append(updated_az_vector)
             updated_az_vectors.append(updated_az_vector_set)
 
