@@ -21,11 +21,11 @@ class TestProduct:
         grid_point_list = ET.SubElement(geolocation_grid, 'geolocationGridPointList')
         grid_point = ET.SubElement(grid_point_list, 'geolocationGridPoint')
         lon = ET.SubElement(grid_point, 'longitude')
-        lon.text = '1'
+        lon.text = '1.1'
         lat = ET.SubElement(grid_point, 'latitude')
-        lat.text = '2'
+        lat.text = '2.2'
         hgt = ET.SubElement(grid_point, 'height')
-        hgt.text = '3'
+        hgt.text = '3.3'
         line = ET.SubElement(grid_point, 'line')
         line.text = '4'
         pixel = ET.SubElement(grid_point, 'pixel')
@@ -38,7 +38,7 @@ class TestProduct:
 
         product.update_gcps()
         assert len(product.gcps) == 1
-        assert product.gcps[0] == GeoPoint(1, 2, 3, 4, 5)
+        assert product.gcps[0] == GeoPoint(1.1, 2.2, 3.3, 4, 5)
 
     def test_merge(self, burst_infos, tmp_path, xsd_dir):
         out_path = tmp_path / 'file-001.xml'
