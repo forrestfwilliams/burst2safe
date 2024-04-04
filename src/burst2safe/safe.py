@@ -84,7 +84,7 @@ class Swath:
         for component in self.annotations:
             component.assemble()
 
-        self.measurement = Measurement(self.burst_infos, self.product, self.image_number)
+        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.image_number)
 
     def write(self):
         self.measurement.write(self.measurement_name)

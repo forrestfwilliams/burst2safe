@@ -7,22 +7,26 @@ import lxml.etree as ET
 import numpy as np
 from osgeo import gdal, osr
 
-from burst2safe.product import Product
+from burst2safe.base import create_content_unit, create_data_object
+from burst2safe.product import GeoPoint
 from burst2safe.utils import BurstInfo, get_subxml_from_metadata
 
 
 class Measurement:
-    def __init__(self, burst_infos: Iterable[BurstInfo], product_obj: Product, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], image_number: int):
         self.burst_infos = burst_infos
-        self.product = product_obj
+        self.gcps = gcps
         self.image_number = image_number
-        self.swath = burst_infos[0].swath
-        self.burst_length = burst_infos[0].length
-        self.burst_width = burst_infos[0].width
+
+        self.swath = self.burst_infos[0].swath
+        self.burst_length = self.burst_infos[0].length
+        self.burst_width = self.burst_infos[0].width
         self.total_width = self.burst_width
-        self.total_length = self.burst_length * len(burst_infos)
+        self.total_length = self.burst_length * len(self.burst_infos)
         self.data_mean = None
         self.data_std = None
+        self.size_bytes = None
+        self.md5 = None
 
     def get_data(self, band: int = 1) -> np.ndarray:
         data = np.zeros((self.total_length, self.total_width), dtype=np.complex64)
@@ -32,22 +36,24 @@ class Measurement:
             ds = None
         return data
 
+    @staticmethod
+    def get_ipf_version(metadata_path: Path) -> str:
+        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
+        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
+        return version_xml.get('version')
+
     def add_metadata(self, ds):
-        gcps = self.product.gcps
-        gdal_gcps = [gdal.GCP(gcp.x, gcp.y, gcp.z, gcp.pixel, gcp.line) for gcp in gcps]
+        gdal_gcps = [gdal.GCP(gcp.x, gcp.y, gcp.z, gcp.pixel, gcp.line) for gcp in self.gcps]
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
-
-        manifest = get_subxml_from_metadata(self.burst_infos[0].metadata_path, 'manifest')
-        software = 'Sentinel-1 IPF'
-        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == software][0]
-        software_version = f'{software} {version_xml.get("version")}'
-
         ds.SetGCPs(gdal_gcps, srs.ExportToWkt())
+
         ds.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
         # TODO make sure A/B is being set correctly.
-        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
-        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
+        ds.SetMetadataItem('TIFFTAG_IMAGE_DESCRIPTION', 'Sentinel-1A IW SLC L1')
+
+        version = self.get_ipf_version(self.burst_infos[0].metadata_path)
+        software_version = f'Sentinel-1 IPF {version}'
         ds.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
 
     def create_geotiff(self, out_path: Path, update_info=True):
@@ -70,34 +76,35 @@ class Measurement:
                 self.md5 = hashlib.md5(file_bytes).hexdigest()
 
     def create_manifest_components(self):
+        simple_name = self.path.with_suffix('').name.replace('-', '')
+        rep_id = 's1Level1MeasurementSchema'
         unit_type = 'Measurement Data Unit'
         mime_type = 'application/octet-stream'
-
-        schema = '{urn:ccsds:schema:xfdu:1}'
-        rep_id = 's1Level1MeasurementSchema'
-        simple_name = self.path.with_suffix('').name.replace('-', '')
-
-        content_unit = ET.Element(f'{schema}contentUnit')
-        content_unit.set('unitType', unit_type)
-        content_unit.set('repID', rep_id)
-        ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
 
         safe_index = [i for i, x in enumerate(self.path.parts) if 'SAFE' in x][-1]
         safe_path = Path(*self.path.parts[: safe_index + 1])
         relative_path = self.path.relative_to(safe_path)
 
-        data_object = ET.Element('dataObject')
-        data_object.set('ID', simple_name)
-        data_object.set('repID', rep_id)
-        byte_stream = ET.SubElement(data_object, 'byteStream')
-        byte_stream.set('mimeType', mime_type)
-        byte_stream.set('size', str(self.size_bytes))
-        file_location = ET.SubElement(byte_stream, 'fileLocation')
-        file_location.set('locatorType', 'URL')
-        file_location.set('href', f'./{relative_path}')
-        checksum = ET.SubElement(byte_stream, 'checksum')
-        checksum.set('checksumName', 'MD5')
-        checksum.text = self.md5
+        content_unit = create_content_unit(simple_name, rep_id, unit_type)
+        data_object = create_data_object(simple_name, relative_path, rep_id, mime_type, self.size_bytes, self.md5)
+
+        # content_unit = ET.Element(f'{schema}contentUnit')
+        # content_unit.set('unitType', unit_type)
+        # content_unit.set('repID', rep_id)
+        # ET.SubElement(content_unit, 'dataObjectPointer', dataObjectID=simple_name)
+
+        # data_object = ET.Element('dataObject')
+        # data_object.set('ID', simple_name)
+        # data_object.set('repID', rep_id)
+        # byte_stream = ET.SubElement(data_object, 'byteStream')
+        # byte_stream.set('mimeType', mime_type)
+        # byte_stream.set('size', str(self.size_bytes))
+        # file_location = ET.SubElement(byte_stream, 'fileLocation')
+        # file_location.set('locatorType', 'URL')
+        # file_location.set('href', f'./{relative_path}')
+        # checksum = ET.SubElement(byte_stream, 'checksum')
+        # checksum.set('checksumName', 'MD5')
+        # checksum.text = self.md5
 
         return content_unit, data_object
 
