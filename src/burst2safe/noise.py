@@ -10,11 +10,18 @@ from burst2safe.utils import BurstInfo, flatten
 
 class Noise(Annotation):
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+        """Create a Noise object.
+
+        Args:
+            burst_infos: List of BurstInfo objects.
+            image_number: Image number.
+        """
         super().__init__(burst_infos, 'noise', image_number)
         self.range_vector_list = None
         self.azimuth_vector_list = None
 
     def create_range_vector_list(self):
+        """Create the range vector list."""
         self.range_vector_list = self.merge_lists('noiseRangeVectorList')
 
     @staticmethod
@@ -42,7 +49,18 @@ class Noise(Annotation):
         return first_index, last_index
 
     @staticmethod
-    def _update_azimuth_vector(az_vector: ET.Element, line_offset: int, start_line: int, stop_line: int):
+    def _update_azimuth_vector(az_vector: ET.Element, line_offset: int, start_line: int, stop_line: int) -> ET.Element:
+        """Update the azimuth vector to match the new line range. Subset noiseAzimuthLut to match.
+
+        Args:
+            az_vector: Azimuth vector.
+            line_offset: Line offset.
+            start_line: Start line.
+            stop_line: Stop line.
+
+        Returns:
+            Updated azimuth vector.
+        """
         new_az_vector = deepcopy(az_vector)
 
         line_element = new_az_vector.find('line')
@@ -65,6 +83,9 @@ class Noise(Annotation):
         return new_az_vector
 
     def create_azimuth_vector_list(self):
+        """Create the azimuth vector list. ListOfListElements class can't be used here because the
+        noiseAzimuthVectorList has a different structure than the other lists elements.
+        """
         az_vectors = [noise.find('noiseAzimuthVectorList') for noise in self.inputs]
         updated_az_vectors = []
         for i, az_vector_set in enumerate(az_vectors):
@@ -86,6 +107,7 @@ class Noise(Annotation):
         self.azimuth_vector_list = new_az_vector_list
 
     def assemble(self):
+        """Assemble the Noise object."""
         self.create_ads_header()
         self.create_range_vector_list()
         self.create_azimuth_vector_list()
