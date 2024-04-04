@@ -12,6 +12,8 @@ from burst2safe.utils import BurstInfo, flatten
 
 @dataclass
 class GeoPoint:
+    """A geolocation grid point."""
+
     x: float
     y: float
     z: float
@@ -21,6 +23,7 @@ class GeoPoint:
 
 class Product(Annotation):
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+        """Create a Product object."""
         super().__init__(burst_infos, 'product', image_number)
         self.qulatity_information = None
         self.general_annotation = None
@@ -156,16 +159,19 @@ class Product(Annotation):
             elem.find(f'{base_path}StdDev/im').text = data_std_im
 
     def create_doppler_centroid(self):
+        """Create the dopplerCentroid element."""
         doppler_centroid = ET.Element('dopplerCentroid')
         doppler_centroid.append(self.merge_lists('dopplerCentroid/dcEstimateList'))
         self.doppler_centroid = doppler_centroid
 
     def create_antenna_pattern(self):
+        """Create the antennaPattern element."""
         antenna_pattern = ET.Element('antennaPattern')
         antenna_pattern.append(self.merge_lists('antennaPattern/antennaPatternList'))
         self.antenna_pattern = antenna_pattern
 
     def create_swath_timing(self):
+        """Create the swathTiming element."""
         burst_lists = [prod.find('swathTiming/burstList') for prod in self.inputs]
         burst_lol = ListOfListElements(burst_lists, self.start_line, self.slc_lengths)
         filtered = burst_lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=0.1))
@@ -186,6 +192,7 @@ class Product(Annotation):
         self.swath_timing = swath_timing
 
     def update_gcps(self):
+        """Update gcp attribute using the geolocationGridPointList."""
         gcp_xmls = self.geolocation_grid.find('geolocationGridPointList').findall('*')
         for gcp_xml in gcp_xmls:
             gcp = GeoPoint(
@@ -198,6 +205,7 @@ class Product(Annotation):
             self.gcps.append(gcp)
 
     def create_geolocation_grid(self):
+        """Create the geolocationGrid element."""
         geolocation_grid = ET.Element('geolocationGrid')
         grid_list = self.merge_lists('geolocationGrid/geolocationGridPointList', line_bounds=[0, self.total_lines])
         geolocation_grid.append(grid_list)
@@ -205,18 +213,21 @@ class Product(Annotation):
         self.update_gcps()
 
     def create_coordinate_conversion(self):
+        """Create an empty coordinateConversion element."""
         coordinate_conversion = ET.Element('coordinateConversion')
         coordinate_conversion_list = ET.SubElement(coordinate_conversion, 'coordinateConversionList')
         coordinate_conversion_list.set('count', '0')
         self.coordinate_conversion = coordinate_conversion
 
     def create_swath_merging(self):
+        """Create an empty swathMerging element."""
         swath_merging = ET.Element('swathMerging')
         swath_merge_list = ET.SubElement(swath_merging, 'swathMergeList')
         swath_merge_list.set('count', '0')
         self.swath_merging = swath_merging
 
     def assemble(self):
+        """Assemble the product XML."""
         self.create_ads_header()
         self.create_quality_information()
         self.create_general_annotation()
