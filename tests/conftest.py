@@ -11,8 +11,13 @@ TEST_DIR = Path(__file__).parent
 
 
 @pytest.fixture
-def test_data_xml():
-    return TEST_DIR / 'test_data' / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
+def test_data_dir():
+    return TEST_DIR / 'test_data'
+
+
+@pytest.fixture
+def test_data_xml(test_data_dir):
+    return test_data_dir / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
 
 
 @pytest.fixture

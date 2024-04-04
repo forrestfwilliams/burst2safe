@@ -176,10 +176,8 @@ def calculate_crc16(file_path: Path) -> str:
     with open(file_path, 'rb') as f:
         data = f.read()
 
-    # TODO: Currently not matching how ESA calculates CRC16
-    crc = crc_hqx(data, 0)
-    crc_hex = format(crc, '04X')
-    return crc_hex
+    crc = f'{crc_hqx(data, 0xffff):04X}'
+    return crc
 
 
 def get_subxml_from_metadata(

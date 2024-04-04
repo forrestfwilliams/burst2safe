@@ -104,15 +104,15 @@ def test_optional_wd():
     assert wd == Path(existing_dir)
 
 
-@pytest.mark.skip(reason='Cannot figure out how ESA calculates the CRC16')
-def test_calculate_crc16(tmp_path, test_data_xml):
-    manifest = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
-    manifest_tree = ET.ElementTree(manifest)
-    ET.indent(manifest_tree, space='  ')
-    manifest_file = tmp_path / 'manifest.safe'
-    manifest_tree.write(manifest_file, pretty_print=True, xml_declaration=True, encoding='utf-8')
+# @pytest.mark.skip(reason='Cannot figure out how ESA calculates the CRC16')
+def test_calculate_crc16(tmp_path, test_data_xml, test_data_dir):
+    # manifest = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
+    # manifest_tree = ET.ElementTree(manifest)
+    # ET.indent(manifest_tree, space='  ')
+    # manifest_file = tmp_path / 'manifest.safe'
+    # manifest_tree.write(manifest_file, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    manifest_file = Path('golden.safe')
+    manifest_file = test_data_dir / 'manifest_7C85.safe'
     crc = utils.calculate_crc16(manifest_file)
     assert crc == '7C85'
 
