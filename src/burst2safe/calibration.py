@@ -9,18 +9,27 @@ from burst2safe.utils import BurstInfo
 
 class Calibration(Annotation):
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+        """Create a calibration object.
+
+        Args:
+            burst_infos: List of BurstInfo objects.
+            image_number: Image number.
+        """
         super().__init__(burst_infos, 'calibration', image_number)
         self.calibration_information = None
         self.calibrattion_vector_list = None
 
     def create_calibration_information(self):
+        """Create the calibration information."""
         calibration_information = [calibration.find('calibrationInformation') for calibration in self.inputs][0]
         self.calibration_information = deepcopy(calibration_information)
 
     def create_calibration_vector_list(self):
+        """Create the calibration vector list."""
         self.calibration_vector_list = self.merge_lists('calibrationVectorList')
 
     def assemble(self):
+        """Assemble the calibration object."""
         self.create_ads_header()
         self.create_calibration_information()
         self.create_calibration_vector_list()
