@@ -26,7 +26,7 @@ def test_add_shape_info(tmp_path, burst_info1):
 def test_add_start_stop_utc(burst_info1):
     test_elem = ET.Element('product')
     az_time_interval = ET.SubElement(test_elem, 'azimuthTimeInterval')
-    az_time_interval.text = '0.01'
+    az_time_interval.text = '1'
     start = datetime.fromisoformat('2020-01-01T00:00:00')
     for i in range(9):
         burst_elem = ET.SubElement(test_elem, 'burst')
@@ -39,8 +39,8 @@ def test_add_start_stop_utc(burst_info1):
         tmp_burst.burst_index = 2
         tmp_burst.length = 10
         tmp_burst.add_start_stop_utc()
-        assert tmp_burst.start_utc == datetime.fromisoformat('2020-01-01T00:00:10.000000')
-        assert tmp_burst.stop_utc == datetime.fromisoformat('2020-01-01T00:00:10.090000')
+        assert tmp_burst.start_utc == datetime.fromisoformat('2020-01-01T00:00:10')
+        assert tmp_burst.stop_utc == datetime.fromisoformat('2020-01-01T00:00:19')
 
 
 def test_create_burst_info(tmp_path, search_result1):
@@ -104,14 +104,7 @@ def test_optional_wd():
     assert wd == Path(existing_dir)
 
 
-# @pytest.mark.skip(reason='Cannot figure out how ESA calculates the CRC16')
 def test_calculate_crc16(tmp_path, test_data_xml, test_data_dir):
-    # manifest = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
-    # manifest_tree = ET.ElementTree(manifest)
-    # ET.indent(manifest_tree, space='  ')
-    # manifest_file = tmp_path / 'manifest.safe'
-    # manifest_tree.write(manifest_file, pretty_print=True, xml_declaration=True, encoding='utf-8')
-
     manifest_file = test_data_dir / 'manifest_7C85.safe'
     crc = utils.calculate_crc16(manifest_file)
     assert crc == '7C85'
