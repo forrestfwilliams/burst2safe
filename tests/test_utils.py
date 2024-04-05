@@ -39,8 +39,8 @@ def test_add_start_stop_utc(burst_info1):
         tmp_burst.burst_index = 2
         tmp_burst.length = 10
         tmp_burst.add_start_stop_utc()
-        assert tmp_burst.start_utc == datetime.fromisoformat('2020-01-01T00:00:10.00')
-        assert tmp_burst.stop_utc == datetime.fromisoformat('2020-01-01T00:00:10.09')
+        assert tmp_burst.start_utc == datetime.fromisoformat('2020-01-01T00:00:10.000000')
+        assert tmp_burst.stop_utc == datetime.fromisoformat('2020-01-01T00:00:10.090000')
 
 
 def test_create_burst_info(tmp_path, search_result1):
