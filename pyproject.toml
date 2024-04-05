@@ -34,7 +34,6 @@ dependencies = [
   "numpy",
   "lxml",
   "asf_search",
-  "crcmod",
 ]
 
 [project.urls]

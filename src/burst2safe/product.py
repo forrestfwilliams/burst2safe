@@ -12,6 +12,8 @@ from burst2safe.utils import BurstInfo, flatten
 
 @dataclass
 class GeoPoint:
+    """A geolocation grid point."""
+
     x: float
     y: float
     z: float
@@ -20,7 +22,15 @@ class GeoPoint:
 
 
 class Product(Annotation):
+    """Class representing a product XML."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+        """Create a Product object.
+
+        Args:
+            burst_infos: A list of BurstInfo objects
+            image_number: The image number
+        """
         super().__init__(burst_infos, 'product', image_number)
         self.qulatity_information = None
         self.general_annotation = None
@@ -34,6 +44,7 @@ class Product(Annotation):
         self.gcps = []
 
     def create_quality_information(self):
+        """Create the qualityInformation element."""
         quality_information = ET.Element('qualityInformation')
         quality_information.append(deepcopy(self.inputs[0].find('qualityInformation/productQualityIndex')))
 
@@ -48,7 +59,10 @@ class Product(Annotation):
         self.quality_information = quality_information
 
     def create_general_annotation(self):
-        """The productInformation sub-record contains single value fields that
+        """Create the generalAnnotation element.
+
+        From product specification:
+        The productInformation sub-record contains single value fields that
         are merged and included. All other sub-records contain lists which are
         concatenated. Details are presented in Table 3-11."""
         general_annotation = ET.Element('generalAnnotation')
@@ -72,7 +86,7 @@ class Product(Annotation):
             list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
             if list_name == 'replicaInformationList':
                 lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
-                unique = lol.get_nonduplicate_elements()
+                unique = lol.get_unique_elements()
                 filtered = ET.Element('replicaInformationList')
                 filtered.set('count', str(len(unique)))
                 [filtered.append(element) for element in unique]
@@ -85,7 +99,10 @@ class Product(Annotation):
         self.general_annotation = general_annotation
 
     def create_image_annotation(self):
-        """This DSR contains two records which contain only single value fields.
+        """Create the imageAnnotation element.
+
+        From product specification:
+        This DSR contains two records which contain only single value fields.
         The fields in the imageInformation record are included and merged
         and all the fields for the processingInformation record are included;
         except for the inputDimensionsList record, which is concatenated.
@@ -129,7 +146,13 @@ class Product(Annotation):
         image_annotation.append(processing_information)
         self.image_annotation = image_annotation
 
-    def update_data_stats(self, data_mean, data_std):
+    def update_data_stats(self, data_mean: np.complex64, data_std: np.complex64):
+        """Update the data statistics in the imageAnnotation element.
+
+        Args:
+            data_mean: The complex mean of the data.
+            data_std: The complex standard deviation of the data.
+        """
         base_path = 'imageInformation/imageStatistics/outputData'
         data_mean_re = f'{data_mean.real:.6e}'
         data_mean_im = f'{data_mean.imag:.6e}'
@@ -143,22 +166,19 @@ class Product(Annotation):
             elem.find(f'{base_path}StdDev/im').text = data_std_im
 
     def create_doppler_centroid(self):
-        dc_lists = [prod.find('dopplerCentroid/dcEstimateList') for prod in self.inputs]
-        dc_lol = ListOfListElements(dc_lists, self.start_line, self.slc_lengths)
-        filtered = dc_lol.create_filtered_list([self.min_anx, self.max_anx])
+        """Create the dopplerCentroid element."""
         doppler_centroid = ET.Element('dopplerCentroid')
-        doppler_centroid.append(filtered)
+        doppler_centroid.append(self.merge_lists('dopplerCentroid/dcEstimateList'))
         self.doppler_centroid = doppler_centroid
 
     def create_antenna_pattern(self):
-        pattern_lists = [prod.find('antennaPattern/antennaPatternList') for prod in self.inputs]
-        pattern_lol = ListOfListElements(pattern_lists, self.start_line, self.slc_lengths)
-        filtered = pattern_lol.create_filtered_list([self.min_anx, self.max_anx])
+        """Create the antennaPattern element."""
         antenna_pattern = ET.Element('antennaPattern')
-        antenna_pattern.append(filtered)
+        antenna_pattern.append(self.merge_lists('antennaPattern/antennaPatternList'))
         self.antenna_pattern = antenna_pattern
 
     def create_swath_timing(self):
+        """Create the swathTiming element."""
         burst_lists = [prod.find('swathTiming/burstList') for prod in self.inputs]
         burst_lol = ListOfListElements(burst_lists, self.start_line, self.slc_lengths)
         filtered = burst_lol.create_filtered_list([self.min_anx, self.max_anx], buffer=timedelta(seconds=0.1))
@@ -178,15 +198,9 @@ class Product(Annotation):
         swath_timing.append(filtered)
         self.swath_timing = swath_timing
 
-    def create_geolocation_grid(self):
-        grid_points = [prod.find('geolocationGrid/geolocationGridPointList') for prod in self.inputs]
-        grid_point_lol = ListOfListElements(grid_points, self.start_line, self.slc_lengths)
-        filtered = grid_point_lol.create_filtered_list([self.min_anx, self.max_anx], line_bounds=[0, self.total_lines])
-        geolocation_grid = ET.Element('geolocationGrid')
-        geolocation_grid.append(filtered)
-        self.geolocation_grid = geolocation_grid
-
-        gcp_xmls = geolocation_grid.find('geolocationGridPointList').findall('*')
+    def update_gcps(self):
+        """Update gcp attribute using the geolocationGridPointList."""
+        gcp_xmls = self.geolocation_grid.find('geolocationGridPointList').findall('*')
         for gcp_xml in gcp_xmls:
             gcp = GeoPoint(
                 float(gcp_xml.find('longitude').text),
@@ -197,19 +211,30 @@ class Product(Annotation):
             )
             self.gcps.append(gcp)
 
+    def create_geolocation_grid(self):
+        """Create the geolocationGrid element."""
+        geolocation_grid = ET.Element('geolocationGrid')
+        grid_list = self.merge_lists('geolocationGrid/geolocationGridPointList', line_bounds=[0, self.total_lines])
+        geolocation_grid.append(grid_list)
+        self.geolocation_grid = geolocation_grid
+        self.update_gcps()
+
     def create_coordinate_conversion(self):
+        """Create an empty coordinateConversion element."""
         coordinate_conversion = ET.Element('coordinateConversion')
         coordinate_conversion_list = ET.SubElement(coordinate_conversion, 'coordinateConversionList')
         coordinate_conversion_list.set('count', '0')
         self.coordinate_conversion = coordinate_conversion
 
     def create_swath_merging(self):
+        """Create an empty swathMerging element."""
         swath_merging = ET.Element('swathMerging')
         swath_merge_list = ET.SubElement(swath_merging, 'swathMergeList')
         swath_merge_list.set('count', '0')
         self.swath_merging = swath_merging
 
     def assemble(self):
+        """Assemble the product from its components."""
         self.create_ads_header()
         self.create_quality_information()
         self.create_general_annotation()
