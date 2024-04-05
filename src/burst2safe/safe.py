@@ -13,6 +13,7 @@ from burst2safe.utils import BurstInfo, get_subxml_from_metadata, optional_wd
 
 class Safe:
     """Class representing a SAFE file."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], work_dir: Optional[Path] = None):
         """Initialize a Safe object.
 

@@ -61,4 +61,3 @@ class TestManifest:
         assert manifest_path.exists()
         assert manifest.path == manifest_path
         assert manifest.crc is not None
-

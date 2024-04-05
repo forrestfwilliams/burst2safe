@@ -87,7 +87,7 @@ class TestMeasurement:
         measurement.md5 = 'md5'
 
         content_unit, data_unit = measurement.create_manifest_components()
-        
+
         assert content_unit.get('repID') == 'Measurement Data Unit'
         assert content_unit.get('unitType') == 's1Level1MeasurementSchema'
 
