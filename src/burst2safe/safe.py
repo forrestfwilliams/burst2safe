@@ -8,7 +8,7 @@ from shapely.geometry import MultiPolygon, Polygon
 
 from burst2safe.manifest import Manifest
 from burst2safe.swath import Swath
-from burst2safe.utils import BurstInfo, optional_wd
+from burst2safe.utils import BurstInfo, get_subxml_from_metadata, optional_wd
 
 
 class Safe:
@@ -145,13 +145,8 @@ class Safe:
     def create_manifest(self):
         manifest_name = self.safe_path / 'manifest.safe'
         content_units, metadata_objects, data_objects = self.compile_manifest_components()
-        manifest = Manifest(
-            content_units,
-            metadata_objects,
-            data_objects,
-            self.get_bbox(),
-            self.burst_infos[0].metadata_path,
-        )
+        template_manifest = get_subxml_from_metadata(self.burst_infos[0].metadata_path, 'manifest')
+        manifest = Manifest(content_units, metadata_objects, data_objects, self.get_bbox(), template_manifest)
         manifest.assemble()
         manifest.write(manifest_name)
 

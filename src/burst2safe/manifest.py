@@ -6,7 +6,7 @@ import lxml.etree as ET
 import numpy as np
 from shapely.geometry import Polygon
 
-from burst2safe.utils import calculate_crc16, get_subxml_from_metadata
+from burst2safe.utils import calculate_crc16
 
 
 class Manifest:
@@ -16,13 +16,13 @@ class Manifest:
         metadata_objects: List[ET.Element],
         data_objects: List[ET.Element],
         bbox: Polygon,
-        template_metadata_path: Path,
+        template_manifest: ET.Element,
     ):
         self.content_units = content_units
         self.metadata_objects = metadata_objects
         self.data_objects = data_objects
         self.bbox = bbox
-        self.template = get_subxml_from_metadata(template_metadata_path, 'manifest')
+        self.template = template_manifest
 
         safe_ns = 'http://www.esa.int/safe/sentinel-1.0'
         self.namespaces = {
