@@ -1,19 +1,17 @@
 import shutil
-from copy import deepcopy
 from datetime import datetime
 from itertools import product
 from pathlib import Path
 from typing import Iterable, Optional
 
-import lxml.etree as ET
-import numpy as np
 from shapely.geometry import MultiPoint, MultiPolygon, Polygon
 
 from burst2safe.calibration import Calibration
+from burst2safe.manifest import Manifest
 from burst2safe.measurement import Measurement
 from burst2safe.noise import Noise
 from burst2safe.product import Product
-from burst2safe.utils import BurstInfo, get_subxml_from_metadata, optional_wd
+from burst2safe.utils import BurstInfo, optional_wd
 
 
 class Swath:
@@ -183,9 +181,31 @@ class Safe:
             swath.write()
             self.swaths.append(swath)
 
+    def compile_manifest_components(self):
+        content_units = []
+        metadata_objects = []
+        data_objects = []
+        for swath in self.swaths:
+            for annotation in swath.annotations:
+                content_unit, metadata_object, date_object = annotation.create_manifest_components()
+                content_units.append(content_unit)
+                metadata_objects.append(metadata_object)
+                data_objects.append(date_object)
+            measurement_content, measurement_data = swath.measurement.create_manifest_components()
+            content_units.append(measurement_content)
+            data_objects.append(measurement_data)
+        return content_units, metadata_objects, data_objects
+
     def create_manifest(self):
         manifest_name = self.safe_path / 'manifest.safe'
-        manifest = Manifest(self)
+        content_units, metadata_objects, data_objects = self.compile_manifest_components()
+        manifest = Manifest(
+            content_units,
+            metadata_objects,
+            data_objects,
+            self.get_bbox(),
+            self.burst_infos[0].metadata_path,
+        )
         manifest.assemble()
         manifest.write(manifest_name)
 
@@ -194,102 +214,3 @@ class Safe:
         self.create_safe_components()
         self.create_manifest()
         return self.safe_path
-
-
-class Manifest:
-    def __init__(self, safe: Safe):
-        self.safe = safe
-        self.content_units = []
-        self.metadata_objects = []
-        self.data_objects = []
-
-        for swath in self.safe.swaths:
-            for annotation in swath.annotations:
-                content_unit, metadata_object, date_object = annotation.create_manifest_components()
-                self.content_units.append(content_unit)
-                self.metadata_objects.append(metadata_object)
-                self.data_objects.append(date_object)
-            measurement_content, measurement_data = swath.measurement.create_manifest_components()
-            self.content_units.append(measurement_content)
-            self.data_objects.append(measurement_data)
-
-        safe_ns = 'http://www.esa.int/safe/sentinel-1.0'
-        self.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'gml': 'http://www.opengis.net/gml',
-            'xfdu': 'urn:ccsds:schema:xfdu:1',
-            'safe': safe_ns,
-            's1': f'{safe_ns}/sentinel-1',
-            's1sar': f'{safe_ns}/sentinel-1/sar',
-            's1sarl1': f'{safe_ns}/sentinel-1/sar/level-1',
-            's1sarl2': f'{safe_ns}/sentinel-1/sar/level-2',
-            'gx': 'http://www.google.com/kml/ext/2.2',
-        }
-        self.version = 'esa/safe/sentinel-1.0/sentinel-1/sar/level-1/slc/standard/iwdp'
-
-    def create_information_package_map(self):
-        xdfu_ns = self.namespaces['xfdu']
-        information_package_map = ET.Element(f'{{{xdfu_ns}}}informationPackageMap')
-        parent_content_unit = ET.Element(
-            f'{{{xdfu_ns}}}contentUnit',
-            unitType='SAFE Archive Information Package',
-            textInfo='Sentinel-1 IW Level-1 SLC Product',
-            dmdID='acquisitionPeriod platform generalProductInformation measurementOrbitReference measurementFrameSet',
-            pdiID='processing',
-        )
-        for content_unit in self.content_units:
-            parent_content_unit.append(content_unit)
-
-        information_package_map.append(parent_content_unit)
-        self.information_package_map = information_package_map
-
-    def create_metadata_section(self):
-        metadata_section = ET.Element('metadataSection')
-        for metadata_object in self.metadata_objects:
-            metadata_section.append(metadata_object)
-
-        first_manifest = get_subxml_from_metadata(self.safe.burst_infos[0].metadata_path, 'manifest')
-        ids_to_keep = [
-            'processing',
-            'platform',
-            'measurementOrbitReference',
-            'generalProductInformation',
-            'acquisitionPeriod',
-            'measurementFrameSet',
-        ]
-        section = 'metadataSection'
-        [metadata_section.append(deepcopy(x)) for x in first_manifest.find(section) if x.get('ID') in ids_to_keep]
-
-        bbox = self.safe.get_bbox()
-        new_coords = [(np.round(y, 6), np.round(x, 6)) for x, y in bbox.exterior.coords]
-        # TODO: only works for descending
-        new_coords = [new_coords[2], new_coords[3], new_coords[0], new_coords[1]]
-        new_coords = ' '.join([f'{x},{y}' for x, y in new_coords])
-        coordinates = metadata_section.find('.//{*}coordinates')
-        coordinates.text = new_coords
-
-        self.metadata_section = metadata_section
-
-    def create_data_object_section(self):
-        self.data_object_section = ET.Element('dataObjectSection')
-        for data_object in self.data_objects:
-            self.data_object_section.append(data_object)
-
-    def assemble(self):
-        self.create_information_package_map()
-        self.create_metadata_section()
-        self.create_data_object_section()
-
-        manifest = ET.Element('{%s}XFDU' % self.namespaces['xfdu'], nsmap=self.namespaces)
-        manifest.set('version', self.version)
-        manifest.append(self.information_package_map)
-        manifest.append(self.metadata_section)
-        manifest.append(self.data_object_section)
-        manifest_tree = ET.ElementTree(manifest)
-
-        ET.indent(manifest_tree, space='  ')
-        self.xml = manifest_tree
-
-    def write(self, out_path: Path) -> None:
-        self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
-        self.path = out_path
