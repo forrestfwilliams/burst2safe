@@ -63,10 +63,7 @@ class Swath:
         return swath_name
 
     def get_bbox(self):
-        gcps = self.product.xml.findall('geolocationGrid/geolocationGridPointList/geolocationGridPoint')
-        lats = [float(gcp.find('latitude').text) for gcp in gcps]
-        lons = [float(gcp.find('longitude').text) for gcp in gcps]
-        points = MultiPoint([(lon, lat) for lon, lat in zip(lons, lats)])
+        points = MultiPoint([(gcp.x, gcp.y) for gcp in self.product.gcps])
         min_rotated_rect = points.minimum_rotated_rectangle
         bbox = Polygon(min_rotated_rect.exterior)
         return bbox

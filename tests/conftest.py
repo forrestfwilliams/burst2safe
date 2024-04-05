@@ -10,6 +10,10 @@ from burst2safe.utils import BurstInfo
 TEST_DIR = Path(__file__).parent
 
 
+def pytest_configure(config):
+    config.addinivalue_line('filterwarnings', 'ignore::RuntimeWarning')
+
+
 @pytest.fixture
 def test_data_dir():
     return TEST_DIR / 'test_data'
