@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Tuple
 
 import numpy as np
 from osgeo import gdal, osr
@@ -12,7 +12,16 @@ from burst2safe.utils import BurstInfo, get_subxml_from_metadata
 
 
 class Measurement:
+    """Class representing a measurement GeoTIFF."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], image_number: int):
+        """Initialize a Measurement object.
+
+        Args:
+            burst_infos: A list of BurstInfo objects
+            gcps: A list of GeoPoint objects
+            image_number: The image number of the measurement
+        """
         self.burst_infos = burst_infos
         self.gcps = gcps
         self.image_number = image_number
@@ -28,6 +37,14 @@ class Measurement:
         self.md5 = None
 
     def get_data(self, band: int = 1) -> np.ndarray:
+        """Get the data from the measurement from ASF burst GeoTIFFs.
+
+        Args:
+            band: The GeoTIFF band to read
+
+        Returns:
+            The data from burst GeoTIFFs as a numpy array
+        """
         data = np.zeros((self.total_length, self.total_width), dtype=np.complex64)
         for i, burst_info in enumerate(self.burst_infos):
             ds = gdal.Open(str(burst_info.data_path))
@@ -37,25 +54,42 @@ class Measurement:
 
     @staticmethod
     def get_ipf_version(metadata_path: Path) -> str:
+        """Get the IPF version from the parent manifest file.
+
+        Returns:
+            The IPF version as a string
+        """
         manifest = get_subxml_from_metadata(metadata_path, 'manifest')
         version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
         return version_xml.get('version')
 
-    def add_metadata(self, ds):
+    def add_metadata(self, dataset: gdal.Dataset):
+        """Add metadata to an existing GDAL dataset.
+
+        Args:
+            dataset: The GDAL dataset to add metadata to
+        """
         gdal_gcps = [gdal.GCP(gcp.x, gcp.y, gcp.z, gcp.pixel, gcp.line) for gcp in self.gcps]
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
-        ds.SetGCPs(gdal_gcps, srs.ExportToWkt())
+        dataset.SetGCPs(gdal_gcps, srs.ExportToWkt())
 
-        ds.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
+        dataset.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
         # TODO make sure A/B is being set correctly.
-        ds.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
+        dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
 
         version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         software_version = f'Sentinel-1 IPF {version}'
-        ds.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
+        dataset.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
 
     def create_geotiff(self, out_path: Path, update_info=True):
+        """Create a GeoTIFF of SLC data from the constituent burst SLC GeoTIFFs.
+        Optionally update Measurment metadata.
+
+        Args:
+            out_path: The path to write the SLC GeoTIFF to
+            update_info: Whether to update the Measurement metadata
+        """
         mem_drv = gdal.GetDriverByName('MEM')
         mem_ds = mem_drv.Create('', self.total_width, self.total_length, 1, gdal.GDT_CInt16)
         data = self.get_data()
@@ -74,7 +108,12 @@ class Measurement:
                 self.size_bytes = len(file_bytes)
                 self.md5 = hashlib.md5(file_bytes).hexdigest()
 
-    def create_manifest_components(self):
+    def create_manifest_components(self) -> Tuple:
+        """Create the components of the SAFE manifest for the measurement file.
+
+        Returns:
+            A tuple of the content unit and data object for the measurement file
+        """
         simple_name = self.path.with_suffix('').name.replace('-', '')
         rep_id = 's1Level1MeasurementSchema'
         unit_type = 'Measurement Data Unit'
@@ -89,4 +128,5 @@ class Measurement:
         return content_unit, data_object
 
     def write(self, out_path):
+        """Write the measurement GeoTIFF to a file."""
         self.create_geotiff(out_path)

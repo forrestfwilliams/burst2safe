@@ -10,6 +10,8 @@ from burst2safe.utils import calculate_crc16
 
 
 class Manifest:
+    """Class representing a SAFE manifest."""
+
     def __init__(
         self,
         content_units: List[ET.Element],
@@ -18,6 +20,15 @@ class Manifest:
         bbox: Polygon,
         template_manifest: ET.Element,
     ):
+        """Initialize a Manifest object.
+
+        Args:
+            content_units: A list of contentUnit elements
+            metadata_objects: A list of metadataObject elements
+            data_objects: A list of dataObject elements
+            bbox: The bounding box of the product
+            template_manifest: The template manifest to generate unalterd metadata from
+        """
         self.content_units = content_units
         self.metadata_objects = metadata_objects
         self.data_objects = data_objects
@@ -47,6 +58,7 @@ class Manifest:
         self.crc = None
 
     def create_information_package_map(self):
+        """Create the information package map."""
         xdfu_ns = self.namespaces['xfdu']
         information_package_map = ET.Element(f'{{{xdfu_ns}}}informationPackageMap')
         parent_content_unit = ET.Element(
@@ -63,6 +75,7 @@ class Manifest:
         self.information_package_map = information_package_map
 
     def create_metadata_section(self):
+        """Create the metadata section."""
         metadata_section = ET.Element('metadataSection')
         for metadata_object in self.metadata_objects:
             metadata_section.append(metadata_object)
@@ -88,11 +101,13 @@ class Manifest:
         self.metadata_section = metadata_section
 
     def create_data_object_section(self):
+        """Create the data object section."""
         self.data_object_section = ET.Element('dataObjectSection')
         for data_object in self.data_objects:
             self.data_object_section.append(data_object)
 
     def assemble(self):
+        """Assemble the components of the SAFE manifest."""
         self.create_information_package_map()
         self.create_metadata_section()
         self.create_data_object_section()
@@ -108,6 +123,12 @@ class Manifest:
         self.xml = manifest_tree
 
     def write(self, out_path: Path, update_info: bool = True) -> None:
+        """Write the SAFE manifest to a file. Optionally update the path and CRC.
+
+        Args:
+            out_path: The path to write the manifest to
+            update_info: Whether to update the path and CRC
+        """
         self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
         if update_info:
             self.path = out_path

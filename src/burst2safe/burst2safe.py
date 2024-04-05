@@ -16,6 +16,18 @@ warnings.filterwarnings('ignore')
 
 
 def burst2safe(granules: Iterable[str], work_dir: Optional[Path] = None) -> Path:
+    """Convert a set of burst granules to the ESA SAFE format.
+
+    To be eligible for conversions, all burst granules must:
+    - Have the same acquisition mode
+    - Be from the same absolute orbit
+    - Be contiguous in time and space
+    - Have the same footprint for all included polarizations
+
+    Args:
+        granules: A list of burst granules to convert to SAFE
+        work_dir: The directory to create the SAFE in
+    """
     work_dir = optional_wd(work_dir)
 
     print(f'Gathering information for {len(granules)} burst(s)...')

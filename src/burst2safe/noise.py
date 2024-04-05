@@ -9,6 +9,8 @@ from burst2safe.utils import BurstInfo, flatten
 
 
 class Noise(Annotation):
+    """Class representing a Noise XML."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
         """Create a Noise object.
 
@@ -107,7 +109,7 @@ class Noise(Annotation):
         self.azimuth_vector_list = new_az_vector_list
 
     def assemble(self):
-        """Assemble the Noise object."""
+        """Assemble the Noise object from its components."""
         self.create_ads_header()
         self.create_range_vector_list()
         self.create_azimuth_vector_list()

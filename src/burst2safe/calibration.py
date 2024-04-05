@@ -8,6 +8,8 @@ from burst2safe.utils import BurstInfo
 
 
 class Calibration(Annotation):
+    """Class representing a calibration XML."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
         """Create a calibration object.
 
@@ -29,7 +31,7 @@ class Calibration(Annotation):
         self.calibration_vector_list = self.merge_lists('calibrationVectorList')
 
     def assemble(self):
-        """Assemble the calibration object."""
+        """Assemble the calibration object components."""
         self.create_ads_header()
         self.create_calibration_information()
         self.create_calibration_vector_list()

@@ -22,8 +22,15 @@ class GeoPoint:
 
 
 class Product(Annotation):
+    """Class representing a product XML."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
-        """Create a Product object."""
+        """Create a Product object.
+
+        Args:
+            burst_infos: A list of BurstInfo objects
+            image_number: The image number
+        """
         super().__init__(burst_infos, 'product', image_number)
         self.qulatity_information = None
         self.general_annotation = None
@@ -139,7 +146,7 @@ class Product(Annotation):
         image_annotation.append(processing_information)
         self.image_annotation = image_annotation
 
-    def update_data_stats(self, data_mean: np.complex_, data_std: np.complex_):
+    def update_data_stats(self, data_mean: np.complex64, data_std: np.complex64):
         """Update the data statistics in the imageAnnotation element.
 
         Args:
@@ -227,7 +234,7 @@ class Product(Annotation):
         self.swath_merging = swath_merging
 
     def assemble(self):
-        """Assemble the product XML."""
+        """Assemble the product from its components."""
         self.create_ads_header()
         self.create_quality_information()
         self.create_general_annotation()
