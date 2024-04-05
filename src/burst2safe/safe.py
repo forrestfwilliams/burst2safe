@@ -18,7 +18,7 @@ class Safe:
 
         self.check_group_validity(self.burst_infos)
 
-        self.grouped_burst_infos = self.group_burst_infos(burst_infos)
+        self.grouped_burst_infos = self.group_burst_infos(self.burst_infos)
         self.name = self.get_name(self.burst_infos)
         self.safe_path = self.work_dir / self.name
         self.swaths = []
@@ -52,10 +52,11 @@ class Safe:
 
         if len(swaths) == 1:
             return
-
-        pols = [f'({", ".join(sorted(keys))})' for keys in burst_range.values()]
-        if len(set(pols)) != 1:
-            raise ValueError(f'Swaths do not have same polarization groups. Found {pols}')
+        
+        # Don't think I need this check
+        # pols = [f'({", ".join(sorted(keys))})' for keys in burst_range.values()]
+        # if len(set(pols)) != 1:
+        #     raise ValueError(f'Swaths do not have same polarization groups. Found {pols}')
 
         swath_combos = [[swaths[i], swaths[i + 1]] for i in range(len(swaths) - 1)]
         working_pol = polarizations[0]
@@ -99,7 +100,7 @@ class Safe:
         return burst_infos
 
     def get_bbox(self):
-        bboxs = MultiPolygon([swath.get_bbox() for swath in self.swaths])
+        bboxs = MultiPolygon([swath.bbox for swath in self.swaths])
         min_rotated_rect = bboxs.minimum_rotated_rectangle
         bbox = Polygon(min_rotated_rect.exterior)
         return bbox

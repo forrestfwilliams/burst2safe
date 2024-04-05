@@ -27,6 +27,9 @@ class Swath:
         self.noise_name = self.safe_path / 'annotation' / 'calibration' / f'noise-{self.name}.xml'
         self.calibration_name = self.safe_path / 'annotation' / 'calibration' / f'calibration-{self.name}.xml'
 
+        # Set on write
+        self.bbox = None
+
     @staticmethod
     def check_burst_group_validity(burst_infos: Iterable[BurstInfo]):
         granules = [x.granule for x in burst_infos]
@@ -78,12 +81,14 @@ class Swath:
 
         self.measurement = Measurement(self.burst_infos, self.product.gcps, self.image_number)
 
-    def write(self):
+    def write(self, update_info: bool = True):
         self.measurement.write(self.measurement_name)
         self.product.update_data_stats(self.measurement.data_mean, self.measurement.data_std)
         self.product.write(self.product_name)
         self.noise.write(self.noise_name)
         self.calibration.write(self.calibration_name)
+        if update_info:
+            self.bbox = self.get_bbox()
 
     def create_manifest_components(self):
         self.manifest_components = {
