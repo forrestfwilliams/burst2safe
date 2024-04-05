@@ -3,6 +3,7 @@ from itertools import product
 from pathlib import Path
 from typing import Iterable, Optional
 
+import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
 from burst2safe.manifest import Manifest
@@ -12,14 +13,59 @@ from burst2safe.utils import BurstInfo, optional_wd
 
 class Safe:
     def __init__(self, burst_infos: Iterable[BurstInfo], work_dir: Optional[Path] = None):
-        # TODO: Check burst group validity for multiple swaths
         self.burst_infos = burst_infos
         self.work_dir = optional_wd(work_dir)
+
+        self.check_group_validity(self.burst_infos)
 
         self.grouped_burst_infos = self.group_burst_infos(burst_infos)
         self.name = self.get_name(self.burst_infos)
         self.safe_path = self.work_dir / self.name
         self.swaths = []
+
+    @staticmethod
+    def check_group_validity(burst_infos: Iterable[BurstInfo]):
+        swaths = sorted(list(set([info.swath for info in burst_infos])))
+        polarizations = sorted(list(set([info.polarization for info in burst_infos])))
+        burst_range = {}
+        for swath in swaths:
+            burst_range[swath] = {}
+            for pol in polarizations:
+                burst_subset = [info for info in burst_infos if info.swath == swath and info.polarization == pol]
+                if len(burst_subset) == 0:
+                    burst_range[swath][pol] = [0, 0]
+                    continue
+                Swath.check_burst_group_validity(burst_subset)
+
+                burst_ids = [info.burst_id for info in burst_subset]
+                burst_range[swath][pol] = [min(burst_ids), max(burst_ids)]
+
+            start_ids = [id_range[0] for id_range in burst_range[swath].values()]
+            if len(set(start_ids)) != 1:
+                raise ValueError(
+                    f'Polarization groups in swath {swath} do not have same start burst id. Found {start_ids}'
+                )
+
+            end_ids = [id_range[1] for id_range in burst_range[swath].values()]
+            if len(set(end_ids)) != 1:
+                raise ValueError(f'Polarization groups in swath {swath} do not have same end burst id. Found {end_ids}')
+
+        if len(swaths) == 1:
+            return
+
+        pols = [f'({", ".join(sorted(keys))})' for keys in burst_range.values()]
+        if len(set(pols)) != 1:
+            raise ValueError(f'Swaths do not have same polarization groups. Found {pols}')
+
+        swath_combos = [[swaths[i], swaths[i + 1]] for i in range(len(swaths) - 1)]
+        working_pol = polarizations[0]
+        for swath1, swath2 in swath_combos:
+            min_diff = burst_range[swath1][working_pol][0] - burst_range[swath2][working_pol][1]
+            if np.abs(min_diff) > 1:
+                raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
+            max_diff = burst_range[swath1][working_pol][1] - burst_range[swath2][working_pol][0]
+            if np.abs(max_diff) > 1:
+                raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
 
     @staticmethod
     def get_name(burst_infos: Iterable[BurstInfo], unique_id: str = '0000') -> str:
