@@ -10,9 +10,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 * Functionality for ensure input bursts are eligible for merging.
-* A test suite for the library
-* Docstrings for the majority of methods/functions
-* Bounding-box based interface for specifying bursts to merge
+* A test suite for the library.
+* Docstrings for the majority of methods/functions.
+* Bounding-box based interface for specifying bursts to merge.
+* Removal of intermediate files after merging.
 
 ### Changed
 * Refactored many components of the library to enable simpler testing.

@@ -8,7 +8,7 @@ from shapely.geometry import MultiPolygon, Polygon
 
 from burst2safe.manifest import Manifest
 from burst2safe.swath import Swath
-from burst2safe.utils import BurstInfo, get_subxml_from_metadata, optional_wd
+from burst2safe.utils import BurstInfo, drop_duplicates, get_subxml_from_metadata, optional_wd
 
 
 class Safe:
@@ -203,3 +203,10 @@ class Safe:
         self.create_safe_components()
         self.create_manifest()
         return self.safe_path
+
+    def cleanup(self):
+        to_delete = [burst_info.data_path for burst_info in self.burst_infos]
+        to_delete += [burst_info.metadata_path for burst_info in self.burst_infos]
+        to_delete = drop_duplicates(to_delete)
+        for file in to_delete:
+            file.unlink()
