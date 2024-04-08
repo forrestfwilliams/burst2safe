@@ -17,7 +17,7 @@ conda install -c conda-forge burst2safe
 
 Then, run the `burst2safe` command line tool using the following structure:
 ```bash
-burst2safe --orbit 32861 --bbox 53.57 27.54 53.78 27.60 --pols VV
+burst2safe --orbit 32861 --bbox 53.57 27.54 53.78 27.60 --pols VV VH
 ```
 Where:
 
@@ -25,16 +25,17 @@ Where:
 * `--bbox` is the bounding box of the area of interest in the format `minlon minlat maxlon maxlat`.
 * `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
 
-For more control over the SAFE creation process, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
+For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
-burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST
+burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST S1_136231_IW2_20200604T022312_VH_7C85-BURST S1_136232_IW2_20200604T022315_VH_7C85-BURST
 ```
+This search is equivalent to the previous search.
 To be eligible for processing, all burst granules must:
 
 1. Have the same acquisition mode
-1. Be in the same polarization
 1. Be from the same absolute orbit
 1. Be contiguous in time and space.
+1. Have the same footprint for all polarizations.
 
 The tool should raise an error if any of these conditions are not met.
 
