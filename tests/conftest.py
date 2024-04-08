@@ -49,9 +49,10 @@ def search_result1():
             },
         }
     )
-    results = asf_search.ASFSearchResults([product])
-    results.searchComplete = True
-    return results
+    # If an ASFSearchResults object is needed, uncomment the following lines:
+    # results = asf_search.ASFSearchResults([product])
+    # results.searchComplete = True
+    return product
 
 
 @pytest.fixture
