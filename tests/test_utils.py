@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-import asf_search
 import lxml
 import lxml.etree as ET
 import pytest
@@ -46,9 +45,7 @@ def test_add_start_stop_utc(burst_info1):
 def test_create_burst_info(tmp_path, search_result1):
     burst_granule = 'S1_136231_IW2_20200604T022312_VV_7C85-BURST'
     slc_granule = 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85'
-    with patch.object(asf_search, 'search') as mock_search:
-        mock_search.return_value = search_result1
-        burst = utils.create_burst_info(burst_granule, tmp_path)
+    burst = utils.create_burst_info(search_result1, tmp_path)
 
     assert burst.granule == burst_granule
     assert burst.slc_granule == slc_granule

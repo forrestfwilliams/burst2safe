@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
-import asf_search
 import lxml.etree as ET
+from asf_search.Products.S1BurstProduct import S1BurstProduct
 from osgeo import gdal
 
 
@@ -54,32 +54,25 @@ class BurstInfo:
         self.stop_utc = self.start_utc + burst_time_interval
 
 
-def create_burst_info(granule: str, work_dir: Path) -> BurstInfo:
+def create_burst_info(product: S1BurstProduct, work_dir: Path) -> BurstInfo:
     """Create a BurstInfo object given a granule.
 
     Args:
-        granule: The granule to get information for.
+        product: A S1BurstProduct object
         work_dir: The directory to save the data to.
     """
-    results = asf_search.search(product_list=[granule])
-    if len(results) == 0:
-        raise ValueError(f'ASF Search failed to find {granule}.')
-    if len(results) > 1:
-        raise ValueError(f'ASF Search found multiple results for {granule}.')
-    result = results[0]
+    slc_granule = product.umm['InputGranules'][0].split('-')[0]
 
-    slc_granule = result.umm['InputGranules'][0].split('-')[0]
+    burst_granule = product.properties['fileID']
+    direction = product.properties['flightDirection'].upper()
+    polarization = product.properties['polarization'].upper()
+    absolute_orbit = int(product.properties['orbit'])
+    data_url = product.properties['url']
+    metadata_url = product.properties['additionalUrls'][0]
 
-    burst_granule = result.properties['fileID']
-    direction = result.properties['flightDirection'].upper()
-    polarization = result.properties['polarization'].upper()
-    absolute_orbit = int(result.properties['orbit'])
-    data_url = result.properties['url']
-    metadata_url = result.properties['additionalUrls'][0]
-
-    swath = result.properties['burst']['subswath'].upper()
-    burst_id = int(result.properties['burst']['relativeBurstID'])
-    burst_index = int(result.properties['burst']['burstIndex'])
+    swath = product.properties['burst']['subswath'].upper()
+    burst_id = int(product.properties['burst']['relativeBurstID'])
+    burst_index = int(product.properties['burst']['burstIndex'])
 
     date_format = '%Y%m%dT%H%M%S'
     burst_time_str = burst_granule.split('_')[3]
@@ -105,19 +98,20 @@ def create_burst_info(granule: str, work_dir: Path) -> BurstInfo:
     return burst_info
 
 
-def get_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
+def get_burst_infos(products: Iterable[S1BurstProduct], work_dir: Path) -> List[BurstInfo]:
     """Get burst information from ASF Search.
 
     Args:
-        granules: The burst granules to get information for.
+        products: A list of S1BurstProduct objects.
         save_dir: The directory to save the data to.
+
     Returns:
         A list of BurstInfo objects.
     """
     work_dir = optional_wd(work_dir)
     burst_info_list = []
-    for granule in granules:
-        burst_info = create_burst_info(granule, work_dir)
+    for product in products:
+        burst_info = create_burst_info(product, work_dir)
         burst_info_list.append(burst_info)
 
     return burst_info_list
