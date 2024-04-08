@@ -30,6 +30,7 @@ class Safe:
         self.name = self.get_name(self.burst_infos)
         self.safe_path = self.work_dir / self.name
         self.swaths = []
+        self.manifest = None
 
     @staticmethod
     def check_group_validity(burst_infos: Iterable[BurstInfo]):
@@ -196,12 +197,24 @@ class Safe:
         manifest = Manifest(content_units, metadata_objects, data_objects, self.get_bbox(), template_manifest)
         manifest.assemble()
         manifest.write(manifest_name)
+        self.manifest = manifest
+
+    def update_product_identifier(self):
+        """Update the product identifier using the CRC of the manifest file."""
+        new_new = self.get_name(self.burst_infos, unique_id=self.manifest.crc)
+        new_path = self.work_dir / new_new
+        if new_path.exists():
+            shutil.rmtree(new_path)
+        shutil.move(self.safe_path, new_path)
+        self.name = new_new
+        self.safe_path = new_path
 
     def create_safe(self):
         """Create the SAFE file."""
         self.create_dir_structure()
         self.create_safe_components()
         self.create_manifest()
+        self.update_product_identifier()
         return self.safe_path
 
     def cleanup(self):
