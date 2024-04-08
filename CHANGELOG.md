@@ -17,6 +17,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 * Refactored many components of the library to enable simpler testing.
+* Correctly set product unique identifier in SAFE name.
 
 ## [0.1.0]
 
