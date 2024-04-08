@@ -15,19 +15,30 @@ Or conda:
 conda install -c conda-forge burst2safe
 ```
 
-Then provide a list of Sentinel-1 burst granule IDs to be merged into a SAFE file to the `burst2safe` CLI tool using the following structure:
+Then, run the `burst2safe` command line tool using the following structure:
+```bash
+burst2safe --orbit 32861 --bbox 53.57 27.54 53.78 27.60 --pols VV
+```
+Where:
 
+* `--orbit` is the absolute orbit number of the Sentinel-1 data.
+* `--bbox` is the bounding box of the area of interest in the format `minlon minlat maxlon maxlat`.
+* `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
+
+For more control over the SAFE creation process, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
 burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST
 ```
-The output SAFE file will be created in the current directory.
 To be eligible for processing, all burst granules must:
+
 1. Have the same acquisition mode
 1. Be in the same polarization
 1. Be from the same absolute orbit
 1. Be contiguous in time and space.
 
 The tool should raise an error if any of these conditions are not met.
+
+The output SAFE file will be created in the current directory.
 
 ## Strategy
 `burst2safe` combines and reformats individual bursts into a SAFE file following the procedure described in the [Sentinel-1 Product Specification Document](https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/document-library/-/asset_publisher/1dO7RF5fJMbd/content/sentinel-1-product-specification-from-ipf-360?_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId=4846613&_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_redirect=https%3A%2F%2Fsentinel.esa.int%2Fweb%2Fsentinel%2Fuser-guides%2Fsentinel-1-sar%2Fdocument-library%3Fp_p_id%3Dcom_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd%26p_p_lifecycle%3D0%26p_p_state%3Dnormal%26p_p_mode%3Dview%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId%3D4846613%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_cur%3D0%26p_r_p_resetCur%3Dfalse)
@@ -95,4 +106,4 @@ Found a bug? Want to request a feature?
 [open an issue](https://github.com/ASFHyP3/asf_tools/issues/new)
 
 General questions? Suggestions? Or just want to talk to the team?
-[chat with us on burst2safe's discussion page](https://github.com/forrestfwilliams/burst2safe/discussions) 
+[chat with us on burst2safe's discussion page](https://github.com/forrestfwilliams/burst2safe/discussions)

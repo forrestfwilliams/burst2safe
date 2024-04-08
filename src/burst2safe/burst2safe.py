@@ -48,6 +48,7 @@ def find_group(orbit: int, footprint: Polygon, polarizations: Iterable[str]) -> 
         )
 
         if not single_pol:
+            # TODO: add Vertex link to error message?
             raise ValueError(
                 f'No results found for orbit {orbit}, footprint {footprint}, and polarization {pol}.'
                 'Bursts may not populated yet for this group. Check Vertex to confirm.'
