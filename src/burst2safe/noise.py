@@ -4,45 +4,77 @@ from typing import Iterable
 import lxml.etree as ET
 import numpy as np
 
-from burst2safe.base import Annotation, ListOfListElements
+from burst2safe.base import Annotation
 from burst2safe.utils import BurstInfo, flatten
 
 
 class Noise(Annotation):
+    """Class representing a Noise XML."""
+
     def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+        """Create a Noise object.
+
+        Args:
+            burst_infos: List of BurstInfo objects.
+            image_number: Image number.
+        """
         super().__init__(burst_infos, 'noise', image_number)
         self.range_vector_list = None
         self.azimuth_vector_list = None
 
     def create_range_vector_list(self):
-        rg_vectors = [noise.find('noiseRangeVectorList') for noise in self.inputs]
-        rg_vector_lol = ListOfListElements(rg_vectors, self.start_line, self.slc_lengths)
-        self.range_vector_list = rg_vector_lol.create_filtered_list([self.min_anx, self.max_anx])
+        """Create the range vector list."""
+        self.range_vector_list = self.merge_lists('noiseRangeVectorList')
 
-    def update_azimuth_vector(self, az_vector: ET.Element, line_offset: int):
-        new_az_vector = deepcopy(az_vector)
-        line_element = new_az_vector.find('line')
+    @staticmethod
+    def _get_start_stop_indexes(lines: np.ndarray, last_line: int, first_line: int = 0) -> tuple[int, int]:
+        """Get the indexes of the first and last lines in the range of lines.
 
-        lines = np.array([int(x) for x in line_element.text.split(' ')])
-        lines += line_offset
+        Args:
+            lines: Array of lines.
+            last_line: Last line of the range.
+            first_line: First line of the range. Defaults to 0.
 
-        first_line = 0
+        Returns:
+            Tuple of the indexes of the first and last lines in the range.
+        """
         if np.any(lines <= first_line):
             first_index = np.where(lines == lines[lines <= first_line].max())[0][0]
         else:
             first_index = 0
 
-        last_line = self.stop_line - self.start_line - 1
         if np.any(lines >= last_line):
             last_index = np.where(lines == lines[lines >= last_line].min())[0][0]
         else:
             last_index = lines.shape[0] - 1
 
-        new_az_vector.find('firstAzimuthLine').text = str(lines[first_index])
-        new_az_vector.find('lastAzimuthLine').text = str(lines[last_index])
+        return first_index, last_index
 
+    @staticmethod
+    def _update_azimuth_vector(az_vector: ET.Element, line_offset: int, start_line: int, stop_line: int) -> ET.Element:
+        """Update the azimuth vector to match the new line range. Subset noiseAzimuthLut to match.
+
+        Args:
+            az_vector: Azimuth vector.
+            line_offset: Line offset.
+            start_line: Start line.
+            stop_line: Stop line.
+
+        Returns:
+            Updated azimuth vector.
+        """
+        new_az_vector = deepcopy(az_vector)
+
+        line_element = new_az_vector.find('line')
+        lines = np.array([int(x) for x in line_element.text.split(' ')])
+        lines += line_offset
+
+        first_index, last_index = Noise._get_start_stop_indexes(lines, stop_line - start_line - 1)
         slice = np.s_[first_index : last_index + 1]
         count = str(last_index - first_index + 1)
+
+        new_az_vector.find('firstAzimuthLine').text = str(lines[first_index])
+        new_az_vector.find('lastAzimuthLine').text = str(lines[last_index])
 
         line_element.text = ' '.join([str(x) for x in lines[slice]])
         line_element.set('count', count)
@@ -53,6 +85,9 @@ class Noise(Annotation):
         return new_az_vector
 
     def create_azimuth_vector_list(self):
+        """Create the azimuth vector list. ListOfListElements class can't be used here because the
+        noiseAzimuthVectorList has a different structure than the other lists elements.
+        """
         az_vectors = [noise.find('noiseAzimuthVectorList') for noise in self.inputs]
         updated_az_vectors = []
         for i, az_vector_set in enumerate(az_vectors):
@@ -61,7 +96,7 @@ class Noise(Annotation):
             updated_az_vector_set = []
             for az_vector in az_vectors:
                 line_offset = slc_offset - self.start_line
-                updated_az_vector = self.update_azimuth_vector(az_vector, line_offset)
+                updated_az_vector = self._update_azimuth_vector(az_vector, line_offset, self.start_line, self.stop_line)
                 updated_az_vector_set.append(updated_az_vector)
             updated_az_vectors.append(updated_az_vector_set)
 
@@ -74,6 +109,7 @@ class Noise(Annotation):
         self.azimuth_vector_list = new_az_vector_list
 
     def assemble(self):
+        """Assemble the Noise object from its components."""
         self.create_ads_header()
         self.create_range_vector_list()
         self.create_azimuth_vector_list()

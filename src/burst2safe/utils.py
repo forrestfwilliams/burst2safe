@@ -1,12 +1,12 @@
 import warnings
+from binascii import crc_hqx
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
-import asf_search
-import crcmod
 import lxml.etree as ET
+from asf_search.Products.S1BurstProduct import S1BurstProduct
 from osgeo import gdal
 
 
@@ -54,28 +54,30 @@ class BurstInfo:
         self.stop_utc = self.start_utc + burst_time_interval
 
 
-def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
-    results = asf_search.search(product_list=[granule])
-    if len(results) == 0:
-        raise ValueError(f'ASF Search failed to find {granule}.')
-    if len(results) > 1:
-        raise ValueError(f'ASF Search found multiple results for {granule}.')
-    result = results[0]
+def create_burst_info(product: S1BurstProduct, work_dir: Path) -> BurstInfo:
+    """Create a BurstInfo object given a granule.
 
-    burst_granule = result.properties['fileID']
-    slc_granule = result.umm['InputGranules'][0].split('-')[0]
-    swath = result.properties['burst']['subswath'].upper()
-    polarization = result.properties['polarization'].upper()
-    burst_id = int(result.properties['burst']['relativeBurstID'])
-    burst_index = int(result.properties['burst']['burstIndex'])
-    direction = result.properties['flightDirection'].upper()
-    absolute_orbit = int(result.properties['orbit'])
+    Args:
+        product: A S1BurstProduct object
+        work_dir: The directory to save the data to.
+    """
+    slc_granule = product.umm['InputGranules'][0].split('-')[0]
+
+    burst_granule = product.properties['fileID']
+    direction = product.properties['flightDirection'].upper()
+    polarization = product.properties['polarization'].upper()
+    absolute_orbit = int(product.properties['orbit'])
+    data_url = product.properties['url']
+    metadata_url = product.properties['additionalUrls'][0]
+
+    swath = product.properties['burst']['subswath'].upper()
+    burst_id = int(product.properties['burst']['relativeBurstID'])
+    burst_index = int(product.properties['burst']['burstIndex'])
+
     date_format = '%Y%m%dT%H%M%S'
     burst_time_str = burst_granule.split('_')[3]
     burst_time = datetime.strptime(burst_time_str, date_format)
-    data_url = result.properties['url']
     data_path = work_dir / f'{burst_granule}.tiff'
-    metadata_url = result.properties['additionalUrls'][0]
     metadata_path = work_dir / f'{slc_granule}_{polarization}.xml'
 
     burst_info = BurstInfo(
@@ -96,25 +98,34 @@ def get_burst_info(granule: str, work_dir: Path) -> BurstInfo:
     return burst_info
 
 
-def gather_burst_infos(granules: Iterable[str], work_dir: Path) -> List[BurstInfo]:
+def get_burst_infos(products: Iterable[S1BurstProduct], work_dir: Path) -> List[BurstInfo]:
     """Get burst information from ASF Search.
 
     Args:
-        granules: The burst granules to get information for.
+        products: A list of S1BurstProduct objects.
         save_dir: The directory to save the data to.
+
     Returns:
         A list of BurstInfo objects.
     """
     work_dir = optional_wd(work_dir)
     burst_info_list = []
-    for granule in granules:
-        burst_info = get_burst_info(granule, work_dir)
+    for product in products:
+        burst_info = create_burst_info(product, work_dir)
         burst_info_list.append(burst_info)
 
     return burst_info_list
 
 
-def sort_burst_infos(burst_info_list):
+def sort_burst_infos(burst_info_list: List[BurstInfo]) -> Dict:
+    """Sort BurstInfo objects by swath and polarization.
+
+    Args:
+        burst_info_list: List of BurstInfo objects.
+
+    Returns:
+        Dictionary of sorted BurstInfo objects. First key is swath, second key is polarization.
+    """
     burst_infos = {}
     for burst_info in burst_info_list:
         if burst_info.swath not in burst_infos:
@@ -133,26 +144,39 @@ def sort_burst_infos(burst_info_list):
     return burst_infos
 
 
-def optional_wd(wd: Optional[Path | str] = None) -> None:
-    """Return the working directory as a Path object"""
+def optional_wd(wd: Optional[Path | str] = None) -> Path:
+    """Return the working directory as a Path object
+
+    Args:
+        wd: Optional working directory as a Path or string
+
+    Returns:
+        Path to your input working directory or the current working directory.
+    """
     if wd is None:
         wd = Path.cwd()
     return Path(wd)
 
 
-def calculate_crc16(file_path: Path):
-    """Calculate the CRC16 checksum for a file."""
+def calculate_crc16(file_path: Path) -> str:
+    """Calculate the CRC16 checksum for a file.
+
+    Args:
+        file_path: Path to file to calculate checksum for
+
+    Returns:
+        CRC16 checksum as a hexadecimal string
+    """
     with open(file_path, 'rb') as f:
         data = f.read()
 
-    # TODO: this doesn't match the ESA checksum
-    crc16 = crcmod.predefined.mkPredefinedCrcFun('crc-16')
-    crc16_value = crc16(data)
-    crc16_hex = hex(crc16_value)[2:].zfill(4).upper()
-    return crc16_hex
+    crc = f'{crc_hqx(data, 0xffff):04X}'
+    return crc
 
 
-def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = None, polarization: str = None):
+def get_subxml_from_metadata(
+    metadata_path: Path, xml_type: str, subswath: str = None, polarization: str = None
+) -> ET.Element:
     """Extract child xml info from ASF combined metadata file.
 
     Args:
@@ -168,9 +192,8 @@ def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = 
         metadata = ET.parse(metadata_file).getroot()
 
     if xml_type == 'manifest':
-        name = 'manifest.safe'
         desired_metadata = metadata.find('manifest/{urn:ccsds:schema:xfdu:1}XFDU')
-        return name, desired_metadata
+        return desired_metadata
 
     possible_types = ['product', 'noise', 'calibration', 'rfi']
     if xml_type not in possible_types:
@@ -191,9 +214,24 @@ def get_subxml_from_metadata(metadata_path: str, xml_type: str, subswath: str = 
     return desired_metadata
 
 
-def flatten(list_of_lists: List[List]):
+def flatten(list_of_lists: List[List]) -> List:
+    """Flatten a list of lists."""
     return [item for sublist in list_of_lists for item in sublist]
 
 
-def drop_duplicates(input_list: List):
+def drop_duplicates(input_list: List) -> List:
+    """Drop duplicates from a list, while preserving order."""
     return list(dict.fromkeys(input_list))
+
+
+def set_text(element: ET.Element, text: str | int) -> None:
+    """Set the text of an element if it is not None.
+
+    Args:
+        element: The element to set the text of.
+        text: The text to set the element to.
+    """
+    if not isinstance(text, str) and not isinstance(text, int):
+        raise ValueError('Text must be a string or an integer.')
+
+    element.text = str(text)
