@@ -8,7 +8,7 @@ from burst2safe.calibration import Calibration
 from burst2safe.measurement import Measurement
 from burst2safe.noise import Noise
 from burst2safe.product import Product
-from burst2safe.utils import BurstInfo
+from burst2safe.utils import BurstInfo, get_subxml_from_metadata
 
 
 class Swath:
@@ -24,6 +24,8 @@ class Swath:
         self.polarization = self.burst_infos[0].polarization
 
         self.name = self.get_name()
+        self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
+        self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
 
         self.measurement_name = self.safe_path / 'measurement' / f'{self.name}.tiff'
         self.product_name = self.safe_path / 'annotation' / f'{self.name}.xml'
@@ -69,6 +71,17 @@ class Swath:
         if burst_ids != list(range(min(burst_ids), max(burst_ids) + 1)):
             raise ValueError(f'All bursts must have consecutive burst IDs. Found: {burst_ids}.')
 
+    @staticmethod
+    def get_ipf_version(metadata_path: Path) -> str:
+        """Get the IPF version from the parent manifest file.
+
+        Returns:
+            The IPF version as a string
+        """
+        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
+        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
+        return version_xml.get('version')
+
     def get_name(self) -> str:
         """Get the name of the swath. Will be used to name constituent output files.
 
@@ -105,7 +118,7 @@ class Swath:
         for component in self.annotations:
             component.assemble()
 
-        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.image_number)
+        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.version, self.image_number)
 
     def write(self, update_info: bool = True):
         """Write the Swath componets to the SAFE directory.

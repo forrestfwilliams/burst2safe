@@ -8,13 +8,13 @@ from osgeo import gdal, osr
 
 from burst2safe.base import create_content_unit, create_data_object
 from burst2safe.product import GeoPoint
-from burst2safe.utils import BurstInfo, get_subxml_from_metadata
+from burst2safe.utils import BurstInfo
 
 
 class Measurement:
     """Class representing a measurement GeoTIFF."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], ipf_version: str, image_number: int):
         """Initialize a Measurement object.
 
         Args:
@@ -24,6 +24,7 @@ class Measurement:
         """
         self.burst_infos = burst_infos
         self.gcps = gcps
+        self.version = ipf_version
         self.image_number = image_number
 
         self.swath = self.burst_infos[0].swath
@@ -52,17 +53,6 @@ class Measurement:
             ds = None
         return data
 
-    @staticmethod
-    def get_ipf_version(metadata_path: Path) -> str:
-        """Get the IPF version from the parent manifest file.
-
-        Returns:
-            The IPF version as a string
-        """
-        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
-        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
-        return version_xml.get('version')
-
     def add_metadata(self, dataset: gdal.Dataset):
         """Add metadata to an existing GDAL dataset.
 
@@ -77,10 +67,7 @@ class Measurement:
         dataset.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
         # TODO make sure A/B is being set correctly.
         dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
-
-        version = self.get_ipf_version(self.burst_infos[0].metadata_path)
-        software_version = f'Sentinel-1 IPF {version}'
-        dataset.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
+        dataset.SetMetadataItem('TIFFTAG_SOFTWARE', f'Sentinel-1 IPF {self.version}')
 
     def create_geotiff(self, out_path: Path, update_info=True):
         """Create a GeoTIFF of SLC data from the constituent burst SLC GeoTIFFs.

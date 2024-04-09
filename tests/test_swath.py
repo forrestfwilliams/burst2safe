@@ -58,6 +58,10 @@ class TestSwath:
         swath = Swath(burst_infos, safe_path, 1)
         assert swath.get_name() == 's1a-iw2-slc-vv-20200604t022312-20200604t022318-032861-03ce65-001'
 
+    def test_get_ipf_version(self, burst_infos):
+        version = Swath.get_ipf_version(burst_infos[0].metadata_path)
+        assert version == '003.20'
+
     def test_get_bbox(self, burst_infos):
         geo_points = [
             GeoPoint(1, 1, 0, 0, 0),

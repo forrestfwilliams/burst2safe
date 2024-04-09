@@ -36,14 +36,14 @@ def gcps():
 
 class TestMeasurement:
     def test_init(self, burst_datas, gcps):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
 
         assert measurement.total_length == 10 * 2
         assert measurement.data_mean is None
         assert measurement.data_std is None
 
     def test_get_data(self, burst_datas, gcps):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         data = measurement.get_data()
         assert data.shape == (10 * 2, 20)
 
@@ -51,15 +51,11 @@ class TestMeasurement:
         golden[10:, :] *= 2
         assert np.allclose(data, golden)
 
-    def test_get_ipf_version(self, burst_datas, gcps, tmp_path):
-        version = Measurement.get_ipf_version(burst_datas[0].metadata_path)
-        assert version == '003.20'
-
     def test_add_metadata(self, burst_datas, gcps):
         mem_drv = gdal.GetDriverByName('MEM')
         mem_ds = mem_drv.Create('', 20, 20, 1, gdal.GDT_CInt16)
 
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.add_metadata(mem_ds)
 
         assert mem_ds.GetGCPCount() == len(gcps)
@@ -70,7 +66,7 @@ class TestMeasurement:
 
     def test_create_geotiff(self, burst_datas, gcps, tmp_path):
         out_path = tmp_path / 'test.tif'
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.create_geotiff(out_path)
 
         assert out_path.exists()
@@ -81,7 +77,7 @@ class TestMeasurement:
         assert measurement.md5 is not None
 
     def test_create_manifest_components(self, burst_datas, gcps, tmp_path):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.path = tmp_path / 'foo.SAFE' / 'test.tif'
         measurement.size_bytes = 100
         measurement.md5 = 'md5'
