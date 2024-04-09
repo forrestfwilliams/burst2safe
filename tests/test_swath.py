@@ -11,7 +11,7 @@ from burst2safe.swath import Swath
 class TestSwath:
     def test_init(self, burst_infos):
         safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos[::-1], safe_path, 1)
+        swath = Swath(burst_infos[::-1], safe_path, '003.20', 1)
         assert swath.burst_infos == burst_infos
 
         name = 's1a-iw2-slc-vv-20200604t022312-20200604t022318-032861-03ce65-001'
@@ -55,12 +55,8 @@ class TestSwath:
 
     def test_get_name(self, burst_infos):
         safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos, safe_path, 1)
+        swath = Swath(burst_infos, safe_path, '003.20', 1)
         assert swath.get_name() == 's1a-iw2-slc-vv-20200604t022312-20200604t022318-032861-03ce65-001'
-
-    def test_get_ipf_version(self, burst_infos):
-        version = Swath.get_ipf_version(burst_infos[0].metadata_path)
-        assert version == '003.20'
 
     def test_get_bbox(self, burst_infos):
         geo_points = [
@@ -72,7 +68,7 @@ class TestSwath:
         ]
         ProductStub = namedtuple('ProductStub', ['gcps'])
         safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos, safe_path, 1)
+        swath = Swath(burst_infos, safe_path, '003.20', 1)
         swath.product = ProductStub(geo_points)
         bbox = swath.get_bbox()
         polygon = Polygon([(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)])

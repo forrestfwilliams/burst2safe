@@ -8,13 +8,14 @@ from burst2safe.calibration import Calibration
 from burst2safe.measurement import Measurement
 from burst2safe.noise import Noise
 from burst2safe.product import Product
-from burst2safe.utils import BurstInfo, get_subxml_from_metadata
+from burst2safe.rfi import Rfi
+from burst2safe.utils import BurstInfo
 
 
 class Swath:
     """Class representing a single swath (and polarization) of a SAFE file."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, version: str, image_number: int):
         """Initialize a Swath object."""
         self.check_burst_group_validity(burst_infos)
         self.burst_infos = sorted(burst_infos, key=lambda x: x.burst_id)
@@ -24,13 +25,19 @@ class Swath:
         self.polarization = self.burst_infos[0].polarization
 
         self.name = self.get_name()
-        self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
+        self.version = version
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
 
         self.measurement_name = self.safe_path / 'measurement' / f'{self.name}.tiff'
         self.product_name = self.safe_path / 'annotation' / f'{self.name}.xml'
         self.noise_name = self.safe_path / 'annotation' / 'calibration' / f'noise-{self.name}.xml'
         self.calibration_name = self.safe_path / 'annotation' / 'calibration' / f'calibration-{self.name}.xml'
+
+        self.rfi_name = None
+        self.has_rfi = False
+        if self.major_version >= 3 and self.minor_version >= 40:
+            self.has_rfi = True
+            self.rfi_name = self.safe_path / 'annotation' / 'rfi' / f'rfi-{self.name}.xml'
 
         # Set on write
         self.bbox = None
@@ -71,17 +78,6 @@ class Swath:
         if burst_ids != list(range(min(burst_ids), max(burst_ids) + 1)):
             raise ValueError(f'All bursts must have consecutive burst IDs. Found: {burst_ids}.')
 
-    @staticmethod
-    def get_ipf_version(metadata_path: Path) -> str:
-        """Get the IPF version from the parent manifest file.
-
-        Returns:
-            The IPF version as a string
-        """
-        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
-        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
-        return version_xml.get('version')
-
     def get_name(self) -> str:
         """Get the name of the swath. Will be used to name constituent output files.
 
@@ -115,6 +111,11 @@ class Swath:
         self.noise = Noise(self.burst_infos, self.image_number)
         self.calibration = Calibration(self.burst_infos, self.image_number)
         self.annotations = [self.product, self.noise, self.calibration]
+
+        if self.has_rfi:
+            self.rfi = Rfi(self.burst_infos, self.image_number)
+            self.annotations.append(self.rfi)
+
         for component in self.annotations:
             component.assemble()
 

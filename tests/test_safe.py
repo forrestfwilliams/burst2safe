@@ -12,6 +12,7 @@ class TestSafe:
         assert safe.burst_infos == burst_infos
         assert safe.work_dir == tmp_path
         assert safe.swaths == []
+        assert safe.version == '003.20'
 
     def test_check_group_validity(self):
         BurstStub = namedtuple('BurstStub', ['granule', 'absolute_orbit', 'swath', 'polarization', 'burst_id'])
@@ -66,6 +67,10 @@ class TestSafe:
         assert grouped['IW2']['VV'] == [burst5, burst7]
         assert grouped['IW2']['VH'] == [burst6, burst8]
 
+    def test_get_ipf_version(self, burst_infos):
+        version = Safe.get_ipf_version(burst_infos[0].metadata_path)
+        assert version == '003.20'
+
     def test_get_bbox(self, burst_infos, tmp_path):
         safe = Safe(burst_infos, work_dir=tmp_path)
 
@@ -86,4 +91,4 @@ class TestSafe:
         assert (safe.safe_path / 'annotation').exists()
         assert (safe.safe_path / 'annotation' / 'calibration').exists()
         assert (safe.safe_path / 'support').exists()
-        assert len(list((safe.safe_path / 'support').glob('*'))) == 5
+        assert len(list((safe.safe_path / 'support').glob('*'))) == 6
