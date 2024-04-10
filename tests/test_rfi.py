@@ -1,11 +1,8 @@
-import pytest
-
 from burst2safe.rfi import Rfi
 from helpers import validate_xml
 
 
 class TestRfi:
-    @pytest.mark.skip(reason='example data does not have RIF')
     def test_merge(self, burst_infos, tmp_path, xsd_dir):
         out_path = tmp_path / 'file-001.xml'
         xsd_file = xsd_dir / 's1-level-1-rfi.xsd'
