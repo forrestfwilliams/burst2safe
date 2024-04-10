@@ -10,11 +10,11 @@ from burst2safe.swath import Swath
 
 class TestSwath:
     def test_init(self, burst_infos):
-        safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos[::-1], safe_path, '003.20', 1)
+        safe_path = Path('./S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D.SAFE')
+        swath = Swath(burst_infos[::-1], safe_path, '003.71', 1)
         assert swath.burst_infos == burst_infos
 
-        name = 's1a-iw2-slc-vv-20200604t022312-20200604t022318-032861-03ce65-001'
+        name = 's1a-iw2-slc-vv-20240408t015108-20240408t015114-053336-06778c-001'
 
         assert swath.name == name
         assert swath.measurement_name.name == f'{name}.tiff'
@@ -54,9 +54,9 @@ class TestSwath:
             Swath.check_burst_group_validity(non_consecutive_burst_ids)
 
     def test_get_name(self, burst_infos):
-        safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos, safe_path, '003.20', 1)
-        assert swath.get_name() == 's1a-iw2-slc-vv-20200604t022312-20200604t022318-032861-03ce65-001'
+        safe_path = Path('./S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D.SAFE')
+        swath = Swath(burst_infos, safe_path, '003.71', 1)
+        assert swath.get_name() == 's1a-iw2-slc-vv-20240408t015108-20240408t015114-053336-06778c-001'
 
     def test_get_bbox(self, burst_infos):
         geo_points = [
@@ -68,7 +68,7 @@ class TestSwath:
         ]
         ProductStub = namedtuple('ProductStub', ['gcps'])
         safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos, safe_path, '003.20', 1)
+        swath = Swath(burst_infos, safe_path, '003.71', 1)
         swath.product = ProductStub(geo_points)
         bbox = swath.get_bbox()
         polygon = Polygon([(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)])

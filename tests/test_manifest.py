@@ -7,12 +7,12 @@ from burst2safe.utils import get_subxml_from_metadata
 
 
 @pytest.fixture
-def manifest(test_data_xml):
+def manifest(test_data1_xml):
     content_units = [ET.Element('content_unit')]
     metadata_objects = [ET.Element('metadata_object')]
     data_objects = [ET.Element('data_object')]
     bbox = Polygon([(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)])
-    template_manifest = get_subxml_from_metadata(test_data_xml, 'manifest')
+    template_manifest = get_subxml_from_metadata(test_data1_xml, 'manifest')
     test_manifest = Manifest(content_units, metadata_objects, data_objects, bbox, template_manifest)
     return test_manifest
 

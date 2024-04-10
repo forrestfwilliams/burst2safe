@@ -132,6 +132,9 @@ class Swath:
         self.product.write(self.product_name)
         self.noise.write(self.noise_name)
         self.calibration.write(self.calibration_name)
+        if self.has_rfi:
+            self.rfi.write(self.rfi_name)
+
         if update_info:
             self.bbox = self.get_bbox()
 

@@ -275,6 +275,7 @@ inline int XmlConvert( XRW_Convert_Op    op,
 			<xsd:enumeration value="PCC2"/>
 			<xsd:enumeration value="Average"/>
 			<xsd:enumeration value="Isolation Subtraction"/>
+			<xsd:enumeration value="PCC2 And Isolation Subtraction"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	<xsd:simpleType name="checksumType">
@@ -398,6 +399,8 @@ inline int XmlConvert( XRW_Convert_Op    op,
 		<xsd:restriction base="string">
 			<xsd:enumeration value="S1A"/>
 			<xsd:enumeration value="S1B"/>
+			<xsd:enumeration value="S1C"/>
+			<xsd:enumeration value="S1D"/>
 			<xsd:enumeration value="ASA"/>
 		</xsd:restriction>
 	</xsd:simpleType>
@@ -667,6 +670,7 @@ inline int XmlConvert( XRW_Convert_Op    op,
 			<xsd:enumeration value="RxCal"/>
 			<xsd:enumeration value="EpdnCal"/>
 			<xsd:enumeration value="TxHCalIso"/>
+			<xsd:enumeration value="TxCalIso"/>
 			<xsd:enumeration value="TaCal"/>
 			<xsd:enumeration value="ApdnCal"/>
 			<xsd:enumeration value="TaRxCal"/>
@@ -840,6 +844,30 @@ inline int XmlConvert( XRW_Convert_Op    op,
 		<xsd:restriction base="string">
 			<xsd:enumeration value="Fine"/>
 			<xsd:enumeration value="Coarse"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="RFIMitigationPerformedType">
+		<xsd:annotation>
+			<xsd:appinfo>CONVERT_FUNC_DEC: SKIP</xsd:appinfo>
+			<xsd:appinfo>CONVERT_FUNC_DEF: SKIP</xsd:appinfo>
+			<xsd:documentation>Enumeration of RFI mitigation policies.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:restriction base="string">
+			<xsd:enumeration value="Never"/>
+			<xsd:enumeration value="Always"/>
+			<xsd:enumeration value="BasedOnNoiseMeas"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="RFIMitigationDomainType">
+		<xsd:annotation>
+			<xsd:appinfo>CONVERT_FUNC_DEC: SKIP</xsd:appinfo>
+			<xsd:appinfo>CONVERT_FUNC_DEF: SKIP</xsd:appinfo>
+			<xsd:documentation>Enumeration of RFI mitigation domains.</xsd:documentation>
+		</xsd:annotation>
+		<xsd:restriction base="string">
+			<xsd:enumeration value="Time"/>
+			<xsd:enumeration value="Frequency"/>
+			<xsd:enumeration value="TimeAndFrequency"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	<!--
