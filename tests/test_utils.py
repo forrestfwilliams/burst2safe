@@ -101,34 +101,34 @@ def test_optional_wd():
     assert wd == Path(existing_dir)
 
 
-def test_calculate_crc16(tmp_path, test_data_xml, test_data_dir):
+def test_calculate_crc16(tmp_path, test_data_dir):
     manifest_file = test_data_dir / 'manifest_7C85.safe'
     crc = utils.calculate_crc16(manifest_file)
     assert crc == '7C85'
 
 
 @pytest.mark.parametrize('xml_type, swath', [('product', 'IW1'), ('noise', 'IW2'), ('calibration', 'IW3')])
-def test_get_subxml_from_metadata(xml_type, swath, test_data_xml):
-    result = utils.get_subxml_from_metadata(test_data_xml, xml_type, swath, 'VV')
+def test_get_subxml_from_metadata(xml_type, swath, test_data1_xml):
+    result = utils.get_subxml_from_metadata(test_data1_xml, xml_type, swath, 'VV')
     assert isinstance(result, lxml.etree._Element)
     assert result.find('adsHeader/swath').text == swath
     assert result.find('adsHeader/polarisation').text == 'VV'
     assert result.tag == 'content'
 
 
-def test_get_subxml_from_metadata_invalid(test_data_xml):
+def test_get_subxml_from_metadata_invalid(test_data1_xml):
     with pytest.raises(ValueError):
-        utils.get_subxml_from_metadata(test_data_xml, 'invalid', 'IW1', 'VV')
+        utils.get_subxml_from_metadata(test_data1_xml, 'invalid', 'IW1', 'VV')
 
-    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'invalid', 'VV')
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'product', 'invalid', 'VV')
     assert result is None
 
-    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'IW1', 'invalid')
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'product', 'IW1', 'invalid')
     assert result is None
 
 
-def test_get_subxml_from_metadata_manifest(test_data_xml):
-    result = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
+def test_get_subxml_from_metadata_manifest(test_data1_xml):
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'manifest')
     assert isinstance(result, lxml.etree._Element)
     assert result.tag == '{urn:ccsds:schema:xfdu:1}XFDU'
 

@@ -71,11 +71,11 @@ All full accounting of omitted datasets and fields can be found below:
     * Calibration
         * No intentional omissions or nulls.
     * RFI
-        * RFI annotation XMLs are currently omitted, but we plan to add this soon.
+        * No intentional omissions or nulls.
     * Product
         * `generalAnnotation/productInformation/platformHeading` set to `''`.
         * `imageAnnotation/imageInformation/azimuthPixelSpacing`
-            - calculated as average of Level 1 SLCs, not slices.
+            - calculated as average of input Level 1 SLCs, not slices.
         * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` / `outputDataStdDev`
             - calculated using `np.mean`/`np.std` on valid data.
         * `swathTiming/burstList/burst/byteOffset` components are set to `''`.
@@ -91,8 +91,8 @@ All full accounting of omitted datasets and fields can be found below:
 * SAFE report
     * The SAFE report PDF is omitted.
 
-### Other Known Compatibility Issues
-This tool may not work for SAFEs created with Sentinel-1 IPF version <= v3.19. In the product annotation files, the `height` sub-field of `GeolocationGridPoint` components was not available prior to IPF v3.19. This field is currently used to concatenate geocontrol points for the measurment GeoTIFFs, and thus the tool may fail if these sub-fields are not present.
+### IPF Version Compatibility
+At this time, we are not aware of any compatibility issues with older Sentinel-1 Instrument Processing Facility (IPF) versions. However, if you do encounter any incompatibilities [please open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new), so we can fix it!
 
 ## License
 `burst2safe` is licensed under the BSD 2-Clause License. See the LICENSE file for more details.
@@ -104,7 +104,7 @@ Contributions this project are welcome! If you would like to contribute, please 
 Want to talk about `burst2safe`? We would love to hear from you!
 
 Found a bug? Want to request a feature?
-[open an issue](https://github.com/ASFHyP3/asf_tools/issues/new)
+[open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new)
 
 General questions? Suggestions? Or just want to talk to the team?
 [chat with us on burst2safe's discussion page](https://github.com/forrestfwilliams/burst2safe/discussions)

@@ -40,6 +40,8 @@ class ListOfListElements:
             self.time_field = 'azimuthTime'
         elif 'time' in [x.tag for x in elements[0].iter()]:
             self.time_field = 'time'
+        elif 'noiseSensingTime' in [x.tag for x in elements[0].iter()]:
+            self.time_field = 'noiseSensingTime'
         else:
             raise ValueError('Time field not found in elements.')
 

@@ -8,13 +8,14 @@ from burst2safe.calibration import Calibration
 from burst2safe.measurement import Measurement
 from burst2safe.noise import Noise
 from burst2safe.product import Product
+from burst2safe.rfi import Rfi
 from burst2safe.utils import BurstInfo
 
 
 class Swath:
     """Class representing a single swath (and polarization) of a SAFE file."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, version: str, image_number: int):
         """Initialize a Swath object."""
         self.check_burst_group_validity(burst_infos)
         self.burst_infos = sorted(burst_infos, key=lambda x: x.burst_id)
@@ -24,11 +25,19 @@ class Swath:
         self.polarization = self.burst_infos[0].polarization
 
         self.name = self.get_name()
+        self.version = version
+        self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
 
         self.measurement_name = self.safe_path / 'measurement' / f'{self.name}.tiff'
         self.product_name = self.safe_path / 'annotation' / f'{self.name}.xml'
         self.noise_name = self.safe_path / 'annotation' / 'calibration' / f'noise-{self.name}.xml'
         self.calibration_name = self.safe_path / 'annotation' / 'calibration' / f'calibration-{self.name}.xml'
+
+        self.rfi_name = None
+        self.has_rfi = False
+        if self.major_version >= 3 and self.minor_version >= 40:
+            self.has_rfi = True
+            self.rfi_name = self.safe_path / 'annotation' / 'rfi' / f'rfi-{self.name}.xml'
 
         # Set on write
         self.bbox = None
@@ -102,10 +111,15 @@ class Swath:
         self.noise = Noise(self.burst_infos, self.image_number)
         self.calibration = Calibration(self.burst_infos, self.image_number)
         self.annotations = [self.product, self.noise, self.calibration]
+
+        if self.has_rfi:
+            self.rfi = Rfi(self.burst_infos, self.image_number)
+            self.annotations.append(self.rfi)
+
         for component in self.annotations:
             component.assemble()
 
-        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.image_number)
+        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.version, self.image_number)
 
     def write(self, update_info: bool = True):
         """Write the Swath componets to the SAFE directory.
@@ -118,6 +132,9 @@ class Swath:
         self.product.write(self.product_name)
         self.noise.write(self.noise_name)
         self.calibration.write(self.calibration_name)
+        if self.has_rfi:
+            self.rfi.write(self.rfi_name)
+
         if update_info:
             self.bbox = self.get_bbox()
 
