@@ -126,7 +126,6 @@ def burst2safe(
 
     products = find_bursts(granules, orbit, footprint, polarizations)
     burst_infos = get_burst_infos(products, work_dir)
-    breakpoint()
     print(f'Found {len(burst_infos)} burst(s).')
 
     print('Check burst group validity...')
