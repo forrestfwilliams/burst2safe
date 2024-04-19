@@ -1,10 +1,9 @@
-name: Test
+name: Integration Test
 
 on:
   pull_request:
     branches:
       - main
-      - develop
 
 jobs:
   call-pytest-workflow:
@@ -12,3 +11,4 @@ jobs:
     uses: forrestfwilliams/burst2safe/.github/workflows/reusable-pytest.yml
     with:
       local_package_name: burst2safe
+      additional_args: -m integration
