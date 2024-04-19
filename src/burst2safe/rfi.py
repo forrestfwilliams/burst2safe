@@ -13,14 +13,14 @@ class Rfi(Annotation):
     Note: RIF annotations only available for IPF version 3.40 onwards.
     """
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], version: str, image_number: int):
         """Create a calibration object.
 
         Args:
             burst_infos: List of BurstInfo objects.
             image_number: Image number.
         """
-        super().__init__(burst_infos, 'rfi', image_number)
+        super().__init__(burst_infos, 'rfi', version, image_number)
         self.rfi_mitigation_applied = None
         self.rfi_detection_from_noise_report_list = None
         self.rfi_burst_report_list = None

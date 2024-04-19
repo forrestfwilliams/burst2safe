@@ -8,12 +8,13 @@ from burst2safe import base
 
 
 METADATA_TYPE = 'product'
+VERSION = '3.71'
 IMAGE_NUMBER = 1
 
 
 @pytest.fixture
 def annotation(burst_infos):
-    return base.Annotation(burst_infos, METADATA_TYPE, IMAGE_NUMBER)
+    return base.Annotation(burst_infos, METADATA_TYPE, VERSION, IMAGE_NUMBER)
 
 
 @pytest.fixture

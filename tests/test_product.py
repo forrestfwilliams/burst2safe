@@ -7,7 +7,7 @@ from helpers import validate_xml
 class TestProduct:
     def test_update_data_stats(self, burst_infos):
         base_path = 'imageInformation/imageStatistics/outputData'
-        product = Product(burst_infos, 1)
+        product = Product(burst_infos, '3.71', 1)
         product.assemble()
         product.update_data_stats(1 + 2j, 3 + 4j)
         for elem in [product.image_annotation, product.xml.find('imageAnnotation')]:
@@ -31,7 +31,7 @@ class TestProduct:
         pixel = ET.SubElement(grid_point, 'pixel')
         pixel.text = '5'
 
-        product = Product(burst_infos, 1)
+        product = Product(burst_infos, '3.71', 1)
         product.geolocation_grid = geolocation_grid
 
         assert len(product.gcps) == 0
@@ -43,7 +43,7 @@ class TestProduct:
     def test_merge(self, burst_infos, tmp_path, xsd_dir):
         out_path = tmp_path / 'file-001.xml'
         xsd_file = xsd_dir / 's1-level-1-product.xsd'
-        product = Product(burst_infos, 1)
+        product = Product(burst_infos, '3.71', 1)
         product.assemble()
 
         # Add back in omitted fields

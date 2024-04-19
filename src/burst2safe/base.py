@@ -29,6 +29,9 @@ class ListOfListElements:
 
         self.name = self.inputs[0].tag
         elements = flatten([element.findall('*') for element in self.inputs])
+        if len(elements) == 0:
+            raise ValueError(f'No Sub-elements contained within {self.name}.')
+
         names = drop_duplicates([x.tag for x in elements])
         if len(names) != 1:
             raise ValueError('Elements must contain only one type of subelement.')
@@ -238,11 +241,12 @@ def create_data_object(
 
 
 class Annotation:
-    def __init__(self, burst_infos: Iterable[BurstInfo], metadata_type: str, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], metadata_type: str, ipf_version: str, image_number: int):
         """Initialize the Annotation object."""
         self.burst_infos = burst_infos
         self.metadata_type = metadata_type
         self.image_number = image_number
+        self.major_version, self.minor_version = [int(v) for v in ipf_version.split('.')]
         self.metadata_paths = drop_duplicates([x.metadata_path for x in burst_infos])
         self.swath, self.pol = burst_infos[0].swath, burst_infos[0].polarization
         self.start_line = burst_infos[0].burst_index * burst_infos[0].length

@@ -11,20 +11,25 @@ from burst2safe.utils import BurstInfo, flatten
 class Noise(Annotation):
     """Class representing a Noise XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], version: str, image_number: int):
         """Create a Noise object.
 
         Args:
             burst_infos: List of BurstInfo objects.
             image_number: Image number.
         """
-        super().__init__(burst_infos, 'noise', image_number)
+        super().__init__(burst_infos, 'noise', version, image_number)
+        self.noise_vector_list = None  # Only used in version < 2.90
         self.range_vector_list = None
         self.azimuth_vector_list = None
 
     def create_range_vector_list(self):
         """Create the range vector list."""
         self.range_vector_list = self.merge_lists('noiseRangeVectorList')
+
+    def create_noise_vector_list(self):
+        """Create the range vector list."""
+        self.noise_vector_list = self.merge_lists('noiseVectorList')
 
     @staticmethod
     def _get_start_stop_indexes(lines: np.ndarray, last_line: int, first_line: int = 0) -> tuple[int, int]:
@@ -111,13 +116,19 @@ class Noise(Annotation):
     def assemble(self):
         """Assemble the Noise object from its components."""
         self.create_ads_header()
-        self.create_range_vector_list()
-        self.create_azimuth_vector_list()
 
         noise = ET.Element('noise')
         noise.append(self.ads_header)
-        noise.append(self.range_vector_list)
-        noise.append(self.azimuth_vector_list)
+    
+        if self.major_version >= 3 or self.minor_version >= 90:
+            self.create_range_vector_list()
+            self.create_azimuth_vector_list()
+            noise.append(self.range_vector_list)
+            noise.append(self.azimuth_vector_list)
+        else:
+            self.create_noise_vector_list()
+            noise.append(self.noise_vector_list)
+
         noise_tree = ET.ElementTree(noise)
 
         ET.indent(noise_tree, space='  ')
