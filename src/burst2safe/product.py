@@ -68,8 +68,12 @@ class Product(Annotation):
         general_annotation = ET.Element('generalAnnotation')
 
         product_information = deepcopy(self.inputs[0].find('generalAnnotation/productInformation'))
+
         # TODO: productInformation/platformHeading should be calculated more accurately
-        product_information.find('platformHeading').text = ''
+        platform_heading_path = 'generalAnnotation/productInformation/platformHeading'
+        platform_heading = np.mean([float(prod.find(platform_heading_path).text) for prod in self.inputs])
+        product_information.find('platformHeading').text = f'{platform_heading:.14e}'
+
         general_annotation.append(product_information)
 
         lists = [
