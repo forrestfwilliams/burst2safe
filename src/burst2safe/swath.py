@@ -129,6 +129,7 @@ class Swath:
         """
         self.measurement.write(self.measurement_name)
         self.product.update_data_stats(self.measurement.data_mean, self.measurement.data_std)
+        self.product.update_burst_byte_offsets(self.measurement.byte_offsets)
         self.product.write(self.product_name)
         self.noise.write(self.noise_name)
         self.calibration.write(self.calibration_name)

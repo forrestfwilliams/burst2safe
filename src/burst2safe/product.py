@@ -215,6 +215,20 @@ class Product(Annotation):
             )
             self.gcps.append(gcp)
 
+    def update_burst_byte_offsets(self, byte_offsets: Iterable[int]):
+        """Update the byte offsets in the burstList element.
+
+        Args:
+            byte_offsets: The byte offsets to update
+        """
+        if self.swath_timing is None or self.xml.find('swathTiming') is None:
+            raise ValueError('Product must be assembled before updating burst byte offsets.')
+
+        for swath_timing in [self.swath_timing, self.xml.find('swathTiming')]:
+            burst_list = swath_timing.find('burstList')
+            for i, byte_offset in enumerate(byte_offsets):
+                burst_list[i].find('byteOffset').text = str(byte_offset)
+
     def create_geolocation_grid(self):
         """Create the geolocationGrid element."""
         geolocation_grid = ET.Element('geolocationGrid')

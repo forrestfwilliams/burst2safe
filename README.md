@@ -67,11 +67,11 @@ A full accounting of omitted datasets and differing fields can be found below:
 
 * Annotation
     * Noise
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations.
     * Calibration
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations
     * RFI
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations.
     * Product
         * `generalAnnotation/productInformation/platformHeading`
             - calculated as average of input Level 1 SLCs, not recalculated from Level-0 slices.
@@ -79,7 +79,6 @@ A full accounting of omitted datasets and differing fields can be found below:
             - calculated as average of input Level 1 SLCs, not Level-0 slices.
         * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` / `outputDataStdDev`
             - calculated using `np.mean`/`np.std` on valid data.
-        * `swathTiming/burstList/burst/byteOffset` components are set to `''`.
 * Measurement GeoTIFFs
     * Invalid data as denoted by `swathTiming/burstList/burst/firstValidSample` and `lastValidSample` are set to zero. This done by the ASF extractor, not this tool.
     * TIFF tags **that are not GeoTIFF tags** are omitted. See Product Specification Table 3-8 for full list.

@@ -19,8 +19,8 @@ def burst_datas(burst_infos, tmp_path):
         n = i + 1
         burst_data = deepcopy(burst_info)
         burst_data.data_path = tmp_path / f'burst{n}.tif'
-        burst_data.length = 10
-        burst_data.width = 20
+        burst_data.length = 1000
+        burst_data.width = 2000
 
         shape = (burst_data.length, burst_data.width, 1)
         create_test_geotiff(burst_data.data_path, dtype='float', value=n, shape=shape)
@@ -38,17 +38,17 @@ class TestMeasurement:
     def test_init(self, burst_datas, gcps):
         measurement = Measurement(burst_datas, gcps, '003.20', 1)
 
-        assert measurement.total_length == 10 * 2
+        assert measurement.total_length == 1000 * 2
         assert measurement.data_mean is None
         assert measurement.data_std is None
 
     def test_get_data(self, burst_datas, gcps):
         measurement = Measurement(burst_datas, gcps, '003.20', 1)
         data = measurement.get_data()
-        assert data.shape == (10 * 2, 20)
+        assert data.shape == (1000 * 2, 2000)
 
-        golden = np.ones((20, 20), dtype=np.complex64)
-        golden[10:, :] *= 2
+        golden = np.ones((2000, 2000), dtype=np.complex64)
+        golden[1000:, :] *= 2
         assert np.allclose(data, golden)
 
     def test_add_metadata(self, burst_datas, gcps):

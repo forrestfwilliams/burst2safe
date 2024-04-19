@@ -5,6 +5,7 @@ from typing import Iterable, Tuple
 
 import numpy as np
 from osgeo import gdal, osr
+from tifffile import TiffFile
 
 from burst2safe.base import create_content_unit, create_data_object
 from burst2safe.product import GeoPoint
@@ -36,6 +37,7 @@ class Measurement:
         self.data_std = None
         self.size_bytes = None
         self.md5 = None
+        self.byte_offsets = []
 
     def get_data(self, band: int = 1) -> np.ndarray:
         """Get the data from the measurement from ASF burst GeoTIFFs.
@@ -52,6 +54,23 @@ class Measurement:
             data[i * self.burst_length : (i + 1) * self.burst_length, :] = ds.GetRasterBand(band).ReadAsArray()
             ds = None
         return data
+
+    def get_burst_byte_offsets(self):
+        with TiffFile(self.path) as tif:
+            if len(tif.pages) != 1:
+                raise ValueError('Byte offset calculation only valid for GeoTIFFs with one band.')
+            page = tif.pages[0]
+
+            if str(page.compression) != 'COMPRESSION.NONE':
+                raise ValueError('Byte offset calculation only valid for uncompressed GeoTIFFs.')
+
+            if page.chunks != (1, page.imagewidth):
+                raise ValueError('Byte offset calculation only valid for GeoTIFFs with one line per block.')
+
+            offsets = page.dataoffsets
+
+        byte_offsets = [offsets[self.burst_length * i] for i in range(len(self.burst_infos))]
+        return byte_offsets
 
     def add_metadata(self, dataset: gdal.Dataset):
         """Add metadata to an existing GDAL dataset.
@@ -86,10 +105,13 @@ class Measurement:
         self.add_metadata(mem_ds)
         gdal.Translate(str(out_path), mem_ds, format='GTiff')
         mem_ds = None
-        self.path = out_path
+
         if update_info:
+            self.path = out_path
             self.data_mean = np.mean(data[data != 0])
             self.data_std = np.std(data[data != 0])
+            self.byte_offsets = self.get_burst_byte_offsets()
+
             with open(self.path, 'rb') as f:
                 file_bytes = f.read()
                 self.size_bytes = len(file_bytes)
