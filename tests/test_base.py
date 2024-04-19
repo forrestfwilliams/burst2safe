@@ -133,6 +133,8 @@ class TestAnnotation:
     def test_annotation_init(self, annotation, burst_infos):
         assert annotation.burst_infos == burst_infos
         assert annotation.metadata_type == METADATA_TYPE
+        assert annotation.major_version == 3
+        assert annotation.minor_version == 71
         assert annotation.image_number == IMAGE_NUMBER
         assert annotation.metadata_paths == [burst_infos[0].metadata_path, burst_infos[1].metadata_path]
         assert annotation.swath == burst_infos[0].swath
