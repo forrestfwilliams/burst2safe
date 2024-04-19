@@ -82,7 +82,7 @@ class TestSafe:
         safe.swaths = [SwathStub(polygon1), SwathStub(polygon2)]
         bbox = safe.get_bbox()
         assert bbox == polygon_merged
-    
+
     @pytest.mark.skip(reason='Broken for now')
     def test_create_dir_structure(self, burst_infos, tmp_path):
         safe = Safe(burst_infos, work_dir=tmp_path)
