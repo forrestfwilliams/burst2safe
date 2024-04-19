@@ -24,14 +24,15 @@ class GeoPoint:
 class Product(Annotation):
     """Class representing a product XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
         """Create a Product object.
 
         Args:
             burst_infos: A list of BurstInfo objects
+            ipf_version: The IPF version of the annotation (i.e. 3.71).
             image_number: The image number
         """
-        super().__init__(burst_infos, 'product', image_number)
+        super().__init__(burst_infos, 'product', ipf_version, image_number)
         self.qulatity_information = None
         self.general_annotation = None
         self.image_annotation = None
@@ -88,7 +89,10 @@ class Product(Annotation):
         ]
         for list_name in lists:
             list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
-            if list_name == 'replicaInformationList':
+            if len(flatten([element.findall('*') for element in list_elements])) == 0:
+                filtered = ET.Element(list_elements[0].tag)
+                filtered.set('count', '0')
+            elif list_name == 'replicaInformationList':
                 lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
                 unique = lol.get_unique_elements()
                 filtered = ET.Element('replicaInformationList')

@@ -8,12 +8,13 @@ from burst2safe import base
 
 
 METADATA_TYPE = 'product'
+VERSION = '3.71'
 IMAGE_NUMBER = 1
 
 
 @pytest.fixture
 def annotation(burst_infos):
-    return base.Annotation(burst_infos, METADATA_TYPE, IMAGE_NUMBER)
+    return base.Annotation(burst_infos, METADATA_TYPE, VERSION, IMAGE_NUMBER)
 
 
 @pytest.fixture
@@ -132,6 +133,8 @@ class TestAnnotation:
     def test_annotation_init(self, annotation, burst_infos):
         assert annotation.burst_infos == burst_infos
         assert annotation.metadata_type == METADATA_TYPE
+        assert annotation.major_version == 3
+        assert annotation.minor_version == 71
         assert annotation.image_number == IMAGE_NUMBER
         assert annotation.metadata_paths == [burst_infos[0].metadata_path, burst_infos[1].metadata_path]
         assert annotation.swath == burst_infos[0].swath

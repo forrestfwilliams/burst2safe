@@ -9,7 +9,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.3.0]
 
 ### Added
-* Support IPF >=3.40 RFI annotation files.
+* Support for IPF >=3.40 RFI annotation files.
+* Support for IPF <=2.90.
 * IPF-specific support files.
 * Calculation of `platformHeading` and `burst/byteOffset` fields.
 

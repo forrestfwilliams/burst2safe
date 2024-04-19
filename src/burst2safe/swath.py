@@ -107,13 +107,13 @@ class Swath:
 
     def assemble(self):
         """Assemble the components of the Swath."""
-        self.product = Product(self.burst_infos, self.image_number)
-        self.noise = Noise(self.burst_infos, self.image_number)
-        self.calibration = Calibration(self.burst_infos, self.image_number)
+        self.product = Product(self.burst_infos, self.version, self.image_number)
+        self.noise = Noise(self.burst_infos, self.version, self.image_number)
+        self.calibration = Calibration(self.burst_infos, self.version, self.image_number)
         self.annotations = [self.product, self.noise, self.calibration]
 
         if self.has_rfi:
-            self.rfi = Rfi(self.burst_infos, self.image_number)
+            self.rfi = Rfi(self.burst_infos, self.version, self.image_number)
             self.annotations.append(self.rfi)
 
         for component in self.annotations:
