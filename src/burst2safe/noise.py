@@ -11,14 +11,15 @@ from burst2safe.utils import BurstInfo, flatten
 class Noise(Annotation):
     """Class representing a Noise XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], version: str, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
         """Create a Noise object.
 
         Args:
             burst_infos: List of BurstInfo objects.
+            ipf_version: The IPF version of the annotation (i.e. 3.71).
             image_number: Image number.
         """
-        super().__init__(burst_infos, 'noise', version, image_number)
+        super().__init__(burst_infos, 'noise', ipf_version, image_number)
         self.noise_vector_list = None  # Only used in version < 2.90
         self.range_vector_list = None
         self.azimuth_vector_list = None
@@ -119,7 +120,7 @@ class Noise(Annotation):
 
         noise = ET.Element('noise')
         noise.append(self.ads_header)
-    
+
         if self.major_version >= 3 or self.minor_version >= 90:
             self.create_range_vector_list()
             self.create_azimuth_vector_list()

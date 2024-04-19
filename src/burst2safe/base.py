@@ -242,7 +242,14 @@ def create_data_object(
 
 class Annotation:
     def __init__(self, burst_infos: Iterable[BurstInfo], metadata_type: str, ipf_version: str, image_number: int):
-        """Initialize the Annotation object."""
+        """Initialize the Annotation object.
+
+        Args:
+            burst_infos: The list of burst information objects.
+            metadata_type: The type of metadata to create.
+            ipf_version: The IPF version of the annotation (i.e. 3.71).
+            image_number: The image number of the annotation.
+        """
         self.burst_infos = burst_infos
         self.metadata_type = metadata_type
         self.image_number = image_number

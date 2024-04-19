@@ -24,14 +24,15 @@ class GeoPoint:
 class Product(Annotation):
     """Class representing a product XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], version: str, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
         """Create a Product object.
 
         Args:
             burst_infos: A list of BurstInfo objects
+            ipf_version: The IPF version of the annotation (i.e. 3.71).
             image_number: The image number
         """
-        super().__init__(burst_infos, 'product', version, image_number)
+        super().__init__(burst_infos, 'product', ipf_version, image_number)
         self.qulatity_information = None
         self.general_annotation = None
         self.image_annotation = None
