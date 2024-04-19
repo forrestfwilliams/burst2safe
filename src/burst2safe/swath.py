@@ -138,6 +138,21 @@ class Swath:
         if update_info:
             self.bbox = self.get_bbox()
 
+    def update_paths(self, safe_path: Path):
+        """Update the paths of the Swath components based on a SAFE path.
+
+        Args:
+            safe_path: The new SAFE path
+        """
+        for component in self.annotations:
+            parts = component.path.parts
+            parent_index = parts.index(safe_path.parent.name)
+            component.path = safe_path / Path(*parts[parent_index + 2 :])
+
+        parts = self.measurement.path.parts
+        parent_index = parts.index(safe_path.parent.name)
+        self.measurement.path = safe_path / Path(*parts[parent_index + 2 :])
+
     def create_manifest_components(self):
         """Create the manifest components for the Swath."""
         self.manifest_components = {
