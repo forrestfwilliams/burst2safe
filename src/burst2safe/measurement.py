@@ -60,8 +60,8 @@ class Measurement:
             if len(tif.pages) != 1:
                 raise ValueError('Byte offset calculation only valid for GeoTIFFs with one band.')
             page = tif.pages[0]
-
-            if str(page.compression) != 'COMPRESSION.NONE':
+            
+            if page.compression._name_ != 'NONE':
                 raise ValueError('Byte offset calculation only valid for uncompressed GeoTIFFs.')
 
             if page.chunks != (1, page.imagewidth):
