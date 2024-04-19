@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import lxml.etree as ET
 import numpy as np
 from osgeo import gdal, osr
@@ -24,7 +26,7 @@ def create_test_geotiff(output_file, dtype='float', value=1, shape=(10, 10, 1)):
     dataset = None
 
 
-def validate_xml(xml_file, xsd_file):
+def validate_xml(xml_file: Path, xsd_file: Path):
     xml_doc = ET.parse(xml_file)
 
     xsd_doc = ET.parse(xsd_file)

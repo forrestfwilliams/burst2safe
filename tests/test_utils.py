@@ -9,17 +9,15 @@ import lxml.etree as ET
 import pytest
 
 from burst2safe import utils
-from helpers import create_test_geotiff
 
 
 def test_add_shape_info(tmp_path, burst_info1):
-    tmp_tiff = tmp_path / 'tmp.tiff'
-    create_test_geotiff(tmp_tiff, dtype='float', shape=(10, 10, 1))
     tmp_burst = deepcopy(burst_info1)
-    tmp_burst.data_path = tmp_tiff
+    tmp_burst.length = None
+    tmp_burst.width = None
     tmp_burst.add_shape_info()
-    assert tmp_burst.length == 10
-    assert tmp_burst.width == 10
+    assert tmp_burst.length == 1508
+    assert tmp_burst.width == 25470
 
 
 def test_add_start_stop_utc(burst_info1):

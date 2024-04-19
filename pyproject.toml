@@ -33,6 +33,7 @@ dependencies = [
   "gdal",
   "numpy",
   "lxml",
+  "tifffile",
   "asf_search",
 ]
 

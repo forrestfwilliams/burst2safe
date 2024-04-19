@@ -36,7 +36,7 @@ def test_data2_xml(test_data_dir):
 
 @pytest.fixture
 def xsd_dir():
-    xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data'
+    xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data' / 'support_340'
     return xsd_dir
 
 

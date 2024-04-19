@@ -1,3 +1,4 @@
+import bisect
 import shutil
 from itertools import product
 from pathlib import Path
@@ -34,6 +35,20 @@ class Safe:
 
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
+        self.support_dir = self.get_support_dir()
+
+    def get_support_dir(self):
+        """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
+        data_dir = Path(__file__).parent / 'data'
+        support_dirs = sorted([x for x in data_dir.iterdir() if x.is_dir()])
+        support_versions = sorted([int(x.name.split('_')[1]) for x in support_dirs])
+        safe_version = (self.major_version * 100) + self.minor_version
+
+        if safe_version in support_versions:
+            support_version = safe_version
+        support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
+
+        return data_dir / f'support_{support_version}'
 
     @staticmethod
     def check_group_validity(burst_infos: Iterable[BurstInfo]):
@@ -171,8 +186,7 @@ class Safe:
         if self.major_version >= 3 and self.minor_version >= 40:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
-        xsd_dir = Path(__file__).parent / 'data'
-        shutil.copytree(xsd_dir, self.safe_path / 'support', dirs_exist_ok=True)
+        shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
 
     def create_safe_components(self):
         """Create the components (data and metadata files) of the SAFE file."""
@@ -225,6 +239,8 @@ class Safe:
         shutil.move(self.safe_path, new_path)
         self.name = new_new
         self.safe_path = new_path
+        for swath in self.swaths:
+            swath.update_paths(self.safe_path)
 
     def create_safe(self):
         """Create the SAFE file."""

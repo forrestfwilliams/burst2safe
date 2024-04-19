@@ -60,25 +60,25 @@ A given data/metadata component must be recalculated using a process unique to e
 
 For `Merge` components, we have made the best effort to follow the merging instructions outlined in the product specification. While we hope to eventually correctly reconstruct all merged fields, there are some components for whom the implementation is unclear. In these cases, we have set the values of these fields to NULL (`''`) so that downstream processors raise errors instead of using incorrect values. **If any fields we have omitted in this way cause your application to fail, let us know so that we can prioritize its development!**
 
-### Omissions and Nulls
-In some cases, we have not created certain datasets or metadata components because the creation process is unknown to us or is irrelevant for assembled products. This includes datasets such as all datasets in the SAFE `preview` directory the SAFE report PDF included with each SAFE file.
+### Deviations from Specification
+In some cases, we were not able to recreate certain datasets or metadata fields in the exact way that the IPF computes them, because the creation process is unknown to us, or utilizes data that we do not have access to. This includes datasets such as all datasets in the SAFE `preview` directory the SAFE report PDF included with each SAFE file, some metadata fields in the annotation datasets.
 
-All full accounting of omitted datasets and fields can be found below:
+A full accounting of omitted datasets and differing fields can be found below:
 
 * Annotation
     * Noise
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations.
     * Calibration
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations
     * RFI
-        * No intentional omissions or nulls.
+        * No intentional omissions or deviations.
     * Product
-        * `generalAnnotation/productInformation/platformHeading` set to `''`.
+        * `generalAnnotation/productInformation/platformHeading`
+            - calculated as average of input Level 1 SLCs, not recalculated from Level-0 slices.
         * `imageAnnotation/imageInformation/azimuthPixelSpacing`
-            - calculated as average of input Level 1 SLCs, not slices.
+            - calculated as average of input Level 1 SLCs, not Level-0 slices.
         * `imageAnnotation/imageInformation/imageStatistics/outputDataMean` / `outputDataStdDev`
             - calculated using `np.mean`/`np.std` on valid data.
-        * `swathTiming/burstList/burst/byteOffset` components are set to `''`.
 * Measurement GeoTIFFs
     * Invalid data as denoted by `swathTiming/burstList/burst/firstValidSample` and `lastValidSample` are set to zero. This done by the ASF extractor, not this tool.
     * TIFF tags **that are not GeoTIFF tags** are omitted. See Product Specification Table 3-8 for full list.
