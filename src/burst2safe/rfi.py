@@ -10,7 +10,7 @@ from burst2safe.utils import BurstInfo
 class Rfi(Annotation):
     """Class representing an radio frequency interference (RFI) XML.
 
-    Note: RIF annotations only available for IPF version 3.40 onwards.
+    Note: RFI annotations only available for IPF version 3.40 onwards.
     """
 
     def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
