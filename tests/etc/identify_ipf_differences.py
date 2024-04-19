@@ -13,34 +13,34 @@ from burst2safe.utils import get_burst_infos
 
 # Commented-out versions are listed as haveing no Level-1 changes
 VERSIONS = [
-    ('2.36', datetime(2014, 10, 1)),
-    ('2.43', datetime(2015, 3, 19)),
-    ('2.45', datetime(2015, 6, 17)),
-    ('2.52', datetime(2015, 7, 2)),
-    ('2.53', datetime(2015, 7, 18)),  # may not need
-    ('2.60', datetime(2015, 11, 20)),
-    ('2.62', datetime(2016, 3, 14)),
-    ('2.70', datetime(2016, 4, 13)),
-    ('2.71', datetime(2016, 5, 11)),
-    ('2.72', datetime(2016, 8, 23)),
-    ('2.82', datetime(2017, 3, 28)),
-    ('2.84', datetime(2017, 8, 22)),  # may not need
-    ('2.90', datetime(2018, 3, 13)),
-    ('2.91', datetime(2018, 6, 26)),
-    ('3.10', datetime(2019, 6, 26)),
-    ('3.20', datetime(2020, 1, 29)),
-    ('3.30', datetime(2020, 6, 23)),  # may not need
-    ('3.31', datetime(2020, 6, 30)),
-    ('3.40', datetime(2021, 11, 4)),
-    ('3.51', datetime(2022, 3, 23)),
-    ('3.52', datetime(2022, 5, 12)),  # may not need
-    ('3.61', datetime(2023, 3, 30)),
-    ('3.71', datetime(2023, 10, 19)),
-    ('Current', datetime.now()),
+    ('2.36', datetime(2014, 10, 1), True),
+    ('2.43', datetime(2015, 3, 19), False),
+    ('2.45', datetime(2015, 6, 17), True),
+    ('2.52', datetime(2015, 7, 2), False),
+    ('2.53', datetime(2015, 7, 18), False),  # may not need
+    ('2.60', datetime(2015, 11, 20), True),
+    ('2.62', datetime(2016, 3, 14), False),
+    ('2.70', datetime(2016, 4, 13), False),
+    ('2.71', datetime(2016, 5, 11), False),
+    ('2.72', datetime(2016, 8, 23), False),
+    ('2.82', datetime(2017, 3, 28), False),
+    ('2.84', datetime(2017, 8, 22), False),  # may not need
+    ('2.90', datetime(2018, 3, 13), True),
+    ('2.91', datetime(2018, 6, 26), False),
+    ('3.10', datetime(2019, 6, 26), False),
+    ('3.20', datetime(2020, 1, 29), False),
+    ('3.30', datetime(2020, 6, 23), False),  # may not need
+    ('3.31', datetime(2020, 6, 30), False),
+    ('3.40', datetime(2021, 11, 4), True),
+    ('3.51', datetime(2022, 3, 23), False),
+    ('3.52', datetime(2022, 5, 12), False),  # may not need
+    ('3.61', datetime(2023, 3, 30), False),
+    ('3.71', datetime(2023, 10, 19), True),
+    ('Current', datetime.now(), False),
 ]
 
 
-def download_slcs():
+def find_representative_bursts():
     options = {
         'intersectsWith': 'POLYGON((12.2376 41.741,12.2607 41.741,12.2607 41.7609,12.2376 41.7609,12.2376 41.741))',
         'dataset': 'SLC-BURST',
@@ -51,17 +51,20 @@ def download_slcs():
     }
     results = asf.search(**options)
     bursts = sorted(get_burst_infos(results, Path.cwd()), key=lambda x: x.date)
-    slcs = []
+    mid_bursts = []
     for i in range(len(VERSIONS) - 1):
         date1 = VERSIONS[i][1]
         date2 = VERSIONS[i + 1][1]
         bursts_between = [burst for burst in bursts if date1 <= burst.date < date2]
         mid_index = int(np.floor(len(bursts_between) / 2))
         mid_burst = bursts_between[mid_index]
-        slc = f'{mid_burst.slc_granule}-SLC'
-        slcs.append(slc)
-        print(f'Found {len(bursts_between)} bursts between {date1} and {date2}. Picking SLC {slc} for download.')
+        mid_bursts.append(mid_burst)
 
+    return mid_bursts
+
+
+def download_slcs():
+    slcs = [f'{burst.slc_granule}-SLC' for burst in find_representative_bursts()]
     slcs = asf.granule_search(slcs)
     slcs.download('.')
 
@@ -105,9 +108,28 @@ def create_diffs():
         os.system(f'git diff --no-index {support1} {support2} > {diff_file}')
 
 
-if __name__ == '__main__':
+def identify_changing_versions():
     download_slcs()
     slc_paths = sorted(list(Path('.').glob('*.zip')))
     for slc_path in slc_paths:
         extract_support_folder(slc_path)
     create_diffs()
+
+
+def download_changing_metadata():
+    bursts = find_representative_bursts()
+    sorted_bursts = sorted(bursts, key=lambda x: x.date)
+
+    important_versions = []
+    for (version, _, important), burst in zip(VERSIONS, sorted_bursts):
+        if important:
+            print(version, burst.granule)
+            important_versions.append(burst)
+
+    for burst in important_versions:
+        asf.download_url(burst.metadata_url, path='.', filename=burst.metadata_path.name)
+
+
+if __name__ == '__main__':
+    # identify_changing_versions()
+    download_changing_metadata()
