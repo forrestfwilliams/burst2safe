@@ -84,6 +84,7 @@ def burst_info1(test_data1_xml):
         start_utc=datetime(2024, 4, 8, 1, 51, 8, 355601),
         stop_utc=datetime(2024, 4, 8, 1, 51, 11, 453324),
         length=1508,
+        width=25470,
     )
     return burst_info
 
@@ -107,6 +108,7 @@ def burst_info2(test_data2_xml):
         start_utc=datetime(2024, 4, 8, 1, 51, 11, 107991),
         stop_utc=datetime(2024, 4, 8, 1, 51, 14, 205714),
         length=1508,
+        width=25470,
     )
     return burst_info
 
