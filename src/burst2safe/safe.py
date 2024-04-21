@@ -94,10 +94,10 @@ class Safe:
         swath_combos = [[swaths[i], swaths[i + 1]] for i in range(len(swaths) - 1)]
         working_pol = polarizations[0]
         for swath1, swath2 in swath_combos:
-            min_diff = burst_range[swath1][working_pol][0] - burst_range[swath2][working_pol][1]
+            min_diff = burst_range[swath1][working_pol][0] - burst_range[swath2][working_pol][0]
             if np.abs(min_diff) > 1:
                 raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
-            max_diff = burst_range[swath1][working_pol][1] - burst_range[swath2][working_pol][0]
+            max_diff = burst_range[swath1][working_pol][1] - burst_range[swath2][working_pol][1]
             if np.abs(max_diff) > 1:
                 raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
 

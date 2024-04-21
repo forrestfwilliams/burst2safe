@@ -196,13 +196,14 @@ class Product(Annotation):
             filtered.remove(filtered[-1])
             filtered.set('count', str(int(filtered.get('count')) - 1))
 
-        # TODO: need to update burst byteOffset field
         for burst in filtered:
             burst.find('byteOffset').text = ''
 
         swath_timing = ET.Element('swathTiming')
-        swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/linesPerBurst')))
-        swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/samplesPerBurst')))
+        lines_per_burst = ET.SubElement(swath_timing, 'linesPerBurst')
+        lines_per_burst.text = str(max([info.length for info in self.burst_infos]))
+        samples_per_burst = ET.SubElement(swath_timing, 'samplesPerBurst')
+        samples_per_burst.text = str(max([info.width for info in self.burst_infos]))
         swath_timing.append(filtered)
         self.swath_timing = swath_timing
 

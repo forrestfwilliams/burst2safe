@@ -29,10 +29,16 @@ class Measurement:
         self.image_number = image_number
 
         self.swath = self.burst_infos[0].swath
-        self.burst_length = self.burst_infos[0].length
-        self.burst_width = self.burst_infos[0].width
-        self.total_width = self.burst_width
+
+        burst_lengths = sorted(list(set([info.length for info in burst_infos])))
+        if len(burst_lengths) != 1:
+            raise ValueError(f'All burst are not the same length. Found {" ".join([str(x) for x in burst_lengths])}')
+        self.burst_length = burst_lengths[0]
         self.total_length = self.burst_length * len(self.burst_infos)
+
+        # TODO: sometimes bursts from different SLCs have different widths. Is this an issue?
+        self.total_width = max([info.width for info in burst_infos])
+
         self.data_mean = None
         self.data_std = None
         self.size_bytes = None
@@ -51,7 +57,8 @@ class Measurement:
         data = np.zeros((self.total_length, self.total_width), dtype=np.complex64)
         for i, burst_info in enumerate(self.burst_infos):
             ds = gdal.Open(str(burst_info.data_path))
-            data[i * self.burst_length : (i + 1) * self.burst_length, :] = ds.GetRasterBand(band).ReadAsArray()
+            burst_slice = np.s_[i * self.burst_length : (i + 1) * self.burst_length, 0 : burst_info.width]
+            data[burst_slice] = ds.GetRasterBand(band).ReadAsArray()
             ds = None
         return data
 
