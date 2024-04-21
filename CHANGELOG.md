@@ -16,6 +16,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * Path information for annotation/measurement files are now are updated when the SAFE path is.
+* Bug when burst widths are different by one pixel
 
 ### Changed
 * Test suite to use test data from 2024 (IPF version 3.71).
