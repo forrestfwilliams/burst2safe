@@ -156,7 +156,7 @@ def optional_wd(wd: Optional[Path | str] = None) -> Path:
     """
     if wd is None:
         wd = Path.cwd()
-    return Path(wd)
+    return Path(wd).resolve()
 
 
 def calculate_crc16(file_path: Path) -> str:

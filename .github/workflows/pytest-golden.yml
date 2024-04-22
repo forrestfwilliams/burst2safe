@@ -1,4 +1,4 @@
-name: Integration Test
+name: Golden Test
 
 on:
   pull_request:
@@ -26,4 +26,4 @@ jobs:
         shell: bash -l {0}
         run: |
           python -m pip install --no-deps .
-          pytest -m integration
+          pytest -m golden
