@@ -1,3 +1,4 @@
+import bisect
 import shutil
 from itertools import product
 from pathlib import Path
@@ -31,6 +32,23 @@ class Safe:
         self.safe_path = self.work_dir / self.name
         self.swaths = []
         self.manifest = None
+
+        self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
+        self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
+        self.support_dir = self.get_support_dir()
+
+    def get_support_dir(self):
+        """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
+        data_dir = Path(__file__).parent / 'data'
+        support_dirs = sorted([x for x in data_dir.iterdir() if x.is_dir()])
+        support_versions = sorted([int(x.name.split('_')[1]) for x in support_dirs])
+        safe_version = (self.major_version * 100) + self.minor_version
+
+        if safe_version in support_versions:
+            support_version = safe_version
+        support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
+
+        return data_dir / f'support_{support_version}'
 
     @staticmethod
     def check_group_validity(burst_infos: Iterable[BurstInfo]):
@@ -76,10 +94,10 @@ class Safe:
         swath_combos = [[swaths[i], swaths[i + 1]] for i in range(len(swaths) - 1)]
         working_pol = polarizations[0]
         for swath1, swath2 in swath_combos:
-            min_diff = burst_range[swath1][working_pol][0] - burst_range[swath2][working_pol][1]
+            min_diff = burst_range[swath1][working_pol][0] - burst_range[swath2][working_pol][0]
             if np.abs(min_diff) > 1:
                 raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
-            max_diff = burst_range[swath1][working_pol][1] - burst_range[swath2][working_pol][0]
+            max_diff = burst_range[swath1][working_pol][1] - burst_range[swath2][working_pol][1]
             if np.abs(max_diff) > 1:
                 raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
 
@@ -130,6 +148,17 @@ class Safe:
 
         return burst_dict
 
+    @staticmethod
+    def get_ipf_version(metadata_path: Path) -> str:
+        """Get the IPF version from the parent manifest file.
+
+        Returns:
+            The IPF version as a string
+        """
+        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
+        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
+        return version_xml.get('version')
+
     def get_bbox(self):
         """Get the bounding box for the SAFE file.
 
@@ -150,12 +179,14 @@ class Safe:
         measurements_dir = self.safe_path / 'measurement'
         annotations_dir = self.safe_path / 'annotation'
         calibration_dir = annotations_dir / 'calibration'
+        rfi_dir = annotations_dir / 'rfi'
 
         calibration_dir.mkdir(parents=True, exist_ok=True)
         measurements_dir.mkdir(parents=True, exist_ok=True)
+        if self.major_version >= 3 and self.minor_version >= 40:
+            rfi_dir.mkdir(parents=True, exist_ok=True)
 
-        xsd_dir = Path(__file__).parent / 'data'
-        shutil.copytree(xsd_dir, self.safe_path / 'support', dirs_exist_ok=True)
+        shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
 
     def create_safe_components(self):
         """Create the components (data and metadata files) of the SAFE file."""
@@ -164,7 +195,7 @@ class Safe:
         for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
             image_number = i + 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
-            swath = Swath(burst_infos, self.safe_path, image_number)
+            swath = Swath(burst_infos, self.safe_path, self.version, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
@@ -208,6 +239,8 @@ class Safe:
         shutil.move(self.safe_path, new_path)
         self.name = new_new
         self.safe_path = new_path
+        for swath in self.swaths:
+            swath.update_paths(self.safe_path)
 
     def create_safe(self):
         """Create the SAFE file."""

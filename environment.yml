@@ -8,6 +8,7 @@ dependencies:
   - gdal
   - numpy
   - lxml
+  - tifffile
   - asf_search
   # For packaging, and testing
   - pytest

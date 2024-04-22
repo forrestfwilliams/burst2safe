@@ -19,14 +19,24 @@ def test_data_dir():
     return TEST_DIR / 'test_data'
 
 
+# @pytest.fixture
+# def test_data_xml(test_data_dir):
+#     return test_data_dir / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
+
+
 @pytest.fixture
-def test_data_xml(test_data_dir):
-    return test_data_dir / 'S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml'
+def test_data1_xml(test_data_dir):
+    return test_data_dir / 'S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D_VV.xml'
+
+
+@pytest.fixture
+def test_data2_xml(test_data_dir):
+    return test_data_dir / 'S1A_IW_SLC__1SDV_20240408T015111_20240408T015138_053336_06778C_CA9A_VV.xml'
 
 
 @pytest.fixture
 def xsd_dir():
-    xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data'
+    xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data' / 'support_340'
     return xsd_dir
 
 
@@ -56,47 +66,49 @@ def search_result1():
 
 
 @pytest.fixture
-def burst_info1(test_data_xml):
+def burst_info1(test_data1_xml):
     burst_info = BurstInfo(
-        granule='S1_136231_IW2_20200604T022312_VV_7C85-BURST',
-        slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
+        granule='S1_135526_IW2_20240408T015108_VV_CB5D-BURST',
+        slc_granule='S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D',
         swath='IW2',
         polarization='VV',
-        burst_id=136231,
-        burst_index=7,
-        direction='DESCENDING',
-        absolute_orbit=32861,
-        date=datetime(2020, 6, 4, 2, 23, 12),
-        data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/7.tiff',
+        burst_id=135526,
+        burst_index=8,
+        direction='ASCENDING',
+        absolute_orbit=53336,
+        date=datetime(2024, 4, 8, 1, 51, 8),
+        data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D/IW2/VV/8.tiff',
         data_path=Path(''),
-        metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/7.xml',
-        metadata_path=test_data_xml,
-        start_utc=datetime(2020, 6, 4, 2, 23, 12, 933265),
-        stop_utc=datetime(2020, 6, 4, 2, 23, 16, 37825),
-        length=1510,
+        metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D/IW2/VV/8.xml',
+        metadata_path=test_data1_xml,
+        start_utc=datetime(2024, 4, 8, 1, 51, 8, 355601),
+        stop_utc=datetime(2024, 4, 8, 1, 51, 11, 453324),
+        length=1508,
+        width=25470,
     )
     return burst_info
 
 
 @pytest.fixture
-def burst_info2(test_data_xml):
+def burst_info2(test_data2_xml):
     burst_info = BurstInfo(
-        granule='S1_136232_IW2_20200604T022315_VV_7C85-BURST',
-        slc_granule='S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85',
+        granule='S1_135527_IW2_20240408T015111_VV_CA9A-BURST',
+        slc_granule='S1A_IW_SLC__1SDV_20240408T015111_20240408T015138_053336_06778C_CA9A',
         swath='IW2',
         polarization='VV',
-        burst_id=136232,
-        burst_index=8,
-        direction='DESCENDING',
-        absolute_orbit=32861,
-        date=datetime(2020, 6, 4, 2, 23, 15),
-        data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/8.tiff',
+        burst_id=135527,
+        burst_index=0,
+        direction='ASCENDING',
+        absolute_orbit=53336,
+        date=datetime(2024, 4, 8, 1, 51, 11),
+        data_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20240408T015111_20240408T015138_053336_06778C_CA9A/IW2/VV/0.tiff',
         data_path=Path(''),
-        metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85/IW2/VV/8.xml',
-        metadata_path=test_data_xml,
-        start_utc=datetime(2020, 6, 4, 2, 23, 15, 697989),
-        stop_utc=datetime(2020, 6, 4, 2, 23, 18, 802549),
-        length=1510,
+        metadata_url='https://sentinel1-burst.asf.alaska.edu/S1A_IW_SLC__1SDV_20240408T015111_20240408T015138_053336_06778C_CA9A/IW2/VV/0.xml',
+        metadata_path=test_data2_xml,
+        start_utc=datetime(2024, 4, 8, 1, 51, 11, 107991),
+        stop_utc=datetime(2024, 4, 8, 1, 51, 14, 205714),
+        length=1508,
+        width=25470,
     )
     return burst_info
 

@@ -8,12 +8,13 @@ from burst2safe import base
 
 
 METADATA_TYPE = 'product'
+VERSION = '3.71'
 IMAGE_NUMBER = 1
 
 
 @pytest.fixture
 def annotation(burst_infos):
-    return base.Annotation(burst_infos, METADATA_TYPE, IMAGE_NUMBER)
+    return base.Annotation(burst_infos, METADATA_TYPE, VERSION, IMAGE_NUMBER)
 
 
 @pytest.fixture
@@ -132,12 +133,14 @@ class TestAnnotation:
     def test_annotation_init(self, annotation, burst_infos):
         assert annotation.burst_infos == burst_infos
         assert annotation.metadata_type == METADATA_TYPE
+        assert annotation.major_version == 3
+        assert annotation.minor_version == 71
         assert annotation.image_number == IMAGE_NUMBER
-        assert annotation.metadata_paths == [burst_infos[0].metadata_path]
+        assert annotation.metadata_paths == [burst_infos[0].metadata_path, burst_infos[1].metadata_path]
         assert annotation.swath == burst_infos[0].swath
         assert annotation.pol == burst_infos[0].polarization
-        assert annotation.start_line == 7 * 1510
-        assert annotation.stop_line == 9 * 1510
+        assert annotation.start_line == 8 * 1508
+        assert annotation.stop_line == 10 * 1508
 
     def test_create_ads_header(self, annotation):
         assert annotation.ads_header is None

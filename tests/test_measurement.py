@@ -19,8 +19,8 @@ def burst_datas(burst_infos, tmp_path):
         n = i + 1
         burst_data = deepcopy(burst_info)
         burst_data.data_path = tmp_path / f'burst{n}.tif'
-        burst_data.length = 10
-        burst_data.width = 20
+        burst_data.length = 1000
+        burst_data.width = 2000
 
         shape = (burst_data.length, burst_data.width, 1)
         create_test_geotiff(burst_data.data_path, dtype='float', value=n, shape=shape)
@@ -36,30 +36,26 @@ def gcps():
 
 class TestMeasurement:
     def test_init(self, burst_datas, gcps):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
 
-        assert measurement.total_length == 10 * 2
+        assert measurement.total_length == 1000 * 2
         assert measurement.data_mean is None
         assert measurement.data_std is None
 
     def test_get_data(self, burst_datas, gcps):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         data = measurement.get_data()
-        assert data.shape == (10 * 2, 20)
+        assert data.shape == (1000 * 2, 2000)
 
-        golden = np.ones((20, 20), dtype=np.complex64)
-        golden[10:, :] *= 2
+        golden = np.ones((2000, 2000), dtype=np.complex64)
+        golden[1000:, :] *= 2
         assert np.allclose(data, golden)
-
-    def test_get_ipf_version(self, burst_datas, gcps, tmp_path):
-        version = Measurement.get_ipf_version(burst_datas[0].metadata_path)
-        assert version == '003.20'
 
     def test_add_metadata(self, burst_datas, gcps):
         mem_drv = gdal.GetDriverByName('MEM')
         mem_ds = mem_drv.Create('', 20, 20, 1, gdal.GDT_CInt16)
 
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.add_metadata(mem_ds)
 
         assert mem_ds.GetGCPCount() == len(gcps)
@@ -70,7 +66,7 @@ class TestMeasurement:
 
     def test_create_geotiff(self, burst_datas, gcps, tmp_path):
         out_path = tmp_path / 'test.tif'
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.create_geotiff(out_path)
 
         assert out_path.exists()
@@ -81,7 +77,7 @@ class TestMeasurement:
         assert measurement.md5 is not None
 
     def test_create_manifest_components(self, burst_datas, gcps, tmp_path):
-        measurement = Measurement(burst_datas, gcps, 1)
+        measurement = Measurement(burst_datas, gcps, '003.20', 1)
         measurement.path = tmp_path / 'foo.SAFE' / 'test.tif'
         measurement.size_bytes = 100
         measurement.md5 = 'md5'

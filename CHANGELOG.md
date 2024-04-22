@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0]
+
+### Added
+* Support for IPF >=3.40 RFI annotation files.
+* Support for IPF <=2.90.
+* IPF-specific support files.
+* Calculation of `platformHeading` and `burst/byteOffset` fields.
+
+### Fixed
+* Path information for annotation/measurement files are now are updated when the SAFE path is.
+* Bug when burst widths are different by one pixel
+
+### Changed
+* Test suite to use test data from 2024 (IPF version 3.71).
+
 ## [0.2.0]
 
 ### Added
@@ -33,4 +48,3 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 * Initial version of project.
-

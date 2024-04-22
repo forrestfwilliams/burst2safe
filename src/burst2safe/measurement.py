@@ -5,16 +5,17 @@ from typing import Iterable, Tuple
 
 import numpy as np
 from osgeo import gdal, osr
+from tifffile import TiffFile
 
 from burst2safe.base import create_content_unit, create_data_object
 from burst2safe.product import GeoPoint
-from burst2safe.utils import BurstInfo, get_subxml_from_metadata
+from burst2safe.utils import BurstInfo
 
 
 class Measurement:
     """Class representing a measurement GeoTIFF."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], ipf_version: str, image_number: int):
         """Initialize a Measurement object.
 
         Args:
@@ -24,17 +25,25 @@ class Measurement:
         """
         self.burst_infos = burst_infos
         self.gcps = gcps
+        self.version = ipf_version
         self.image_number = image_number
 
         self.swath = self.burst_infos[0].swath
-        self.burst_length = self.burst_infos[0].length
-        self.burst_width = self.burst_infos[0].width
-        self.total_width = self.burst_width
+
+        burst_lengths = sorted(list(set([info.length for info in burst_infos])))
+        if len(burst_lengths) != 1:
+            raise ValueError(f'All burst are not the same length. Found {" ".join([str(x) for x in burst_lengths])}')
+        self.burst_length = burst_lengths[0]
         self.total_length = self.burst_length * len(self.burst_infos)
+
+        # TODO: sometimes bursts from different SLCs have different widths. Is this an issue?
+        self.total_width = max([info.width for info in burst_infos])
+
         self.data_mean = None
         self.data_std = None
         self.size_bytes = None
         self.md5 = None
+        self.byte_offsets = []
 
     def get_data(self, band: int = 1) -> np.ndarray:
         """Get the data from the measurement from ASF burst GeoTIFFs.
@@ -48,20 +57,36 @@ class Measurement:
         data = np.zeros((self.total_length, self.total_width), dtype=np.complex64)
         for i, burst_info in enumerate(self.burst_infos):
             ds = gdal.Open(str(burst_info.data_path))
-            data[i * self.burst_length : (i + 1) * self.burst_length, :] = ds.GetRasterBand(band).ReadAsArray()
+            burst_slice = np.s_[i * self.burst_length : (i + 1) * self.burst_length, 0 : burst_info.width]
+            data[burst_slice] = ds.GetRasterBand(band).ReadAsArray()
             ds = None
         return data
 
-    @staticmethod
-    def get_ipf_version(metadata_path: Path) -> str:
-        """Get the IPF version from the parent manifest file.
+    def get_burst_byte_offsets(self):
+        with TiffFile(self.path) as tif:
+            if len(tif.pages) != 1:
+                raise ValueError('Byte offset calculation only valid for GeoTIFFs with one band.')
+            page = tif.pages[0]
+
+            if page.compression._name_ != 'NONE':
+                raise ValueError('Byte offset calculation only valid for uncompressed GeoTIFFs.')
+
+            if page.chunks != (1, page.imagewidth):
+                raise ValueError('Byte offset calculation only valid for GeoTIFFs with one line per block.')
+
+            offsets = page.dataoffsets
+
+        byte_offsets = [offsets[self.burst_length * i] for i in range(len(self.burst_infos))]
+        return byte_offsets
+
+    def get_time_tag(self) -> str:
+        """Get the current time as a time tag.
+        This is a separate method to allow for easy mocking in tests.
 
         Returns:
-            The IPF version as a string
+            The time tag as a string
         """
-        manifest = get_subxml_from_metadata(metadata_path, 'manifest')
-        version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
-        return version_xml.get('version')
+        return datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S')
 
     def add_metadata(self, dataset: gdal.Dataset):
         """Add metadata to an existing GDAL dataset.
@@ -74,13 +99,10 @@ class Measurement:
         srs.ImportFromEPSG(4326)
         dataset.SetGCPs(gdal_gcps, srs.ExportToWkt())
 
-        dataset.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
+        dataset.SetMetadataItem('TIFFTAG_DATETIME', self.get_time_tag())
         # TODO make sure A/B is being set correctly.
         dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
-
-        version = self.get_ipf_version(self.burst_infos[0].metadata_path)
-        software_version = f'Sentinel-1 IPF {version}'
-        dataset.SetMetadataItem('TIFFTAG_SOFTWARE', software_version)
+        dataset.SetMetadataItem('TIFFTAG_SOFTWARE', f'Sentinel-1 IPF {self.version}')
 
     def create_geotiff(self, out_path: Path, update_info=True):
         """Create a GeoTIFF of SLC data from the constituent burst SLC GeoTIFFs.
@@ -99,10 +121,13 @@ class Measurement:
         self.add_metadata(mem_ds)
         gdal.Translate(str(out_path), mem_ds, format='GTiff')
         mem_ds = None
-        self.path = out_path
+
         if update_info:
+            self.path = out_path
             self.data_mean = np.mean(data[data != 0])
             self.data_std = np.std(data[data != 0])
+            self.byte_offsets = self.get_burst_byte_offsets()
+
             with open(self.path, 'rb') as f:
                 file_bytes = f.read()
                 self.size_bytes = len(file_bytes)

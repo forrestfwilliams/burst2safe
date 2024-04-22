@@ -9,17 +9,15 @@ import lxml.etree as ET
 import pytest
 
 from burst2safe import utils
-from helpers import create_test_geotiff
 
 
 def test_add_shape_info(tmp_path, burst_info1):
-    tmp_tiff = tmp_path / 'tmp.tiff'
-    create_test_geotiff(tmp_tiff, dtype='float', shape=(10, 10, 1))
     tmp_burst = deepcopy(burst_info1)
-    tmp_burst.data_path = tmp_tiff
+    tmp_burst.length = None
+    tmp_burst.width = None
     tmp_burst.add_shape_info()
-    assert tmp_burst.length == 10
-    assert tmp_burst.width == 10
+    assert tmp_burst.length == 1508
+    assert tmp_burst.width == 25470
 
 
 def test_add_start_stop_utc(burst_info1):
@@ -98,37 +96,37 @@ def test_optional_wd():
     existing_dir = 'working'
     wd = utils.optional_wd(existing_dir)
     assert isinstance(wd, Path)
-    assert wd == Path(existing_dir)
+    assert wd == Path(existing_dir).resolve()
 
 
-def test_calculate_crc16(tmp_path, test_data_xml, test_data_dir):
+def test_calculate_crc16(tmp_path, test_data_dir):
     manifest_file = test_data_dir / 'manifest_7C85.safe'
     crc = utils.calculate_crc16(manifest_file)
     assert crc == '7C85'
 
 
 @pytest.mark.parametrize('xml_type, swath', [('product', 'IW1'), ('noise', 'IW2'), ('calibration', 'IW3')])
-def test_get_subxml_from_metadata(xml_type, swath, test_data_xml):
-    result = utils.get_subxml_from_metadata(test_data_xml, xml_type, swath, 'VV')
+def test_get_subxml_from_metadata(xml_type, swath, test_data1_xml):
+    result = utils.get_subxml_from_metadata(test_data1_xml, xml_type, swath, 'VV')
     assert isinstance(result, lxml.etree._Element)
     assert result.find('adsHeader/swath').text == swath
     assert result.find('adsHeader/polarisation').text == 'VV'
     assert result.tag == 'content'
 
 
-def test_get_subxml_from_metadata_invalid(test_data_xml):
+def test_get_subxml_from_metadata_invalid(test_data1_xml):
     with pytest.raises(ValueError):
-        utils.get_subxml_from_metadata(test_data_xml, 'invalid', 'IW1', 'VV')
+        utils.get_subxml_from_metadata(test_data1_xml, 'invalid', 'IW1', 'VV')
 
-    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'invalid', 'VV')
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'product', 'invalid', 'VV')
     assert result is None
 
-    result = utils.get_subxml_from_metadata(test_data_xml, 'product', 'IW1', 'invalid')
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'product', 'IW1', 'invalid')
     assert result is None
 
 
-def test_get_subxml_from_metadata_manifest(test_data_xml):
-    result = utils.get_subxml_from_metadata(test_data_xml, 'manifest')
+def test_get_subxml_from_metadata_manifest(test_data1_xml):
+    result = utils.get_subxml_from_metadata(test_data1_xml, 'manifest')
     assert isinstance(result, lxml.etree._Element)
     assert result.tag == '{urn:ccsds:schema:xfdu:1}XFDU'
 

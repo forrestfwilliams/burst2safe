@@ -38,8 +38,9 @@ class BurstInfo:
 
     def add_shape_info(self):
         """Add shape information to the BurstInfo object."""
-        info = gdal.Info(str(self.data_path), format='json')
-        self.width, self.length = info['size']
+        annotation = get_subxml_from_metadata(self.metadata_path, 'product', self.swath, self.polarization)
+        self.length = int(annotation.find('swathTiming/linesPerBurst').text)
+        self.width = int(annotation.find('swathTiming/samplesPerBurst').text)
 
     def add_start_stop_utc(self):
         """Add start and stop UTC to burst info.
@@ -155,7 +156,7 @@ def optional_wd(wd: Optional[Path | str] = None) -> Path:
     """
     if wd is None:
         wd = Path.cwd()
-    return Path(wd)
+    return Path(wd).resolve()
 
 
 def calculate_crc16(file_path: Path) -> str:

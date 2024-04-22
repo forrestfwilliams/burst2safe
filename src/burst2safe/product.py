@@ -24,14 +24,15 @@ class GeoPoint:
 class Product(Annotation):
     """Class representing a product XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
         """Create a Product object.
 
         Args:
             burst_infos: A list of BurstInfo objects
+            ipf_version: The IPF version of the annotation (i.e. 3.71).
             image_number: The image number
         """
-        super().__init__(burst_infos, 'product', image_number)
+        super().__init__(burst_infos, 'product', ipf_version, image_number)
         self.qulatity_information = None
         self.general_annotation = None
         self.image_annotation = None
@@ -68,8 +69,12 @@ class Product(Annotation):
         general_annotation = ET.Element('generalAnnotation')
 
         product_information = deepcopy(self.inputs[0].find('generalAnnotation/productInformation'))
+
         # TODO: productInformation/platformHeading should be calculated more accurately
-        product_information.find('platformHeading').text = ''
+        platform_heading_path = 'generalAnnotation/productInformation/platformHeading'
+        platform_heading = np.mean([float(prod.find(platform_heading_path).text) for prod in self.inputs])
+        product_information.find('platformHeading').text = f'{platform_heading:.14e}'
+
         general_annotation.append(product_information)
 
         lists = [
@@ -84,7 +89,10 @@ class Product(Annotation):
         ]
         for list_name in lists:
             list_elements = [prod.find(f'generalAnnotation/{list_name}') for prod in self.inputs]
-            if list_name == 'replicaInformationList':
+            if len(flatten([element.findall('*') for element in list_elements])) == 0:
+                filtered = ET.Element(list_elements[0].tag)
+                filtered.set('count', '0')
+            elif list_name == 'replicaInformationList':
                 lol = ListOfListElements(list_elements, self.start_line, self.slc_lengths)
                 unique = lol.get_unique_elements()
                 filtered = ET.Element('replicaInformationList')
@@ -188,13 +196,14 @@ class Product(Annotation):
             filtered.remove(filtered[-1])
             filtered.set('count', str(int(filtered.get('count')) - 1))
 
-        # TODO: need to update burst byteOffset field
         for burst in filtered:
             burst.find('byteOffset').text = ''
 
         swath_timing = ET.Element('swathTiming')
-        swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/linesPerBurst')))
-        swath_timing.append(deepcopy(self.inputs[0].find('swathTiming/samplesPerBurst')))
+        lines_per_burst = ET.SubElement(swath_timing, 'linesPerBurst')
+        lines_per_burst.text = str(max([info.length for info in self.burst_infos]))
+        samples_per_burst = ET.SubElement(swath_timing, 'samplesPerBurst')
+        samples_per_burst.text = str(max([info.width for info in self.burst_infos]))
         swath_timing.append(filtered)
         self.swath_timing = swath_timing
 
@@ -210,6 +219,20 @@ class Product(Annotation):
                 int(gcp_xml.find('pixel').text),
             )
             self.gcps.append(gcp)
+
+    def update_burst_byte_offsets(self, byte_offsets: Iterable[int]):
+        """Update the byte offsets in the burstList element.
+
+        Args:
+            byte_offsets: The byte offsets to update
+        """
+        if self.swath_timing is None or self.xml.find('swathTiming') is None:
+            raise ValueError('Product must be assembled before updating burst byte offsets.')
+
+        for swath_timing in [self.swath_timing, self.xml.find('swathTiming')]:
+            burst_list = swath_timing.find('burstList')
+            for i, byte_offset in enumerate(byte_offsets):
+                burst_list[i].find('byteOffset').text = str(byte_offset)
 
     def create_geolocation_grid(self):
         """Create the geolocationGrid element."""

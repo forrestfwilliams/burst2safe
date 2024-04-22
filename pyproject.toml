@@ -33,6 +33,7 @@ dependencies = [
   "gdal",
   "numpy",
   "lxml",
+  "tifffile",
   "asf_search",
 ]
 
@@ -50,8 +51,8 @@ develop = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = '-ra -q -m "not integration"'
-markers = ["integration"]
+addopts = '-ra -q -m "not integration and not golden"'
+markers = ["integration", "golden"]
 testpaths = ["tests"]
 
 [tool.black]
