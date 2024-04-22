@@ -96,7 +96,7 @@ def test_optional_wd():
     existing_dir = 'working'
     wd = utils.optional_wd(existing_dir)
     assert isinstance(wd, Path)
-    assert wd == Path(existing_dir)
+    assert wd == Path(existing_dir).resolve()
 
 
 def test_calculate_crc16(tmp_path, test_data_dir):

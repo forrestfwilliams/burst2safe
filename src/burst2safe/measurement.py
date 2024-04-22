@@ -79,6 +79,15 @@ class Measurement:
         byte_offsets = [offsets[self.burst_length * i] for i in range(len(self.burst_infos))]
         return byte_offsets
 
+    def get_time_tag(self) -> str:
+        """Get the current time as a time tag.
+        This is a separate method to allow for easy mocking in tests.
+
+        Returns:
+            The time tag as a string
+        """
+        return datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S')
+
     def add_metadata(self, dataset: gdal.Dataset):
         """Add metadata to an existing GDAL dataset.
 
@@ -90,7 +99,7 @@ class Measurement:
         srs.ImportFromEPSG(4326)
         dataset.SetGCPs(gdal_gcps, srs.ExportToWkt())
 
-        dataset.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S'))
+        dataset.SetMetadataItem('TIFFTAG_DATETIME', self.get_time_tag())
         # TODO make sure A/B is being set correctly.
         dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
         dataset.SetMetadataItem('TIFFTAG_SOFTWARE', f'Sentinel-1 IPF {self.version}')
