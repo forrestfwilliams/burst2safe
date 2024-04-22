@@ -36,12 +36,13 @@ def prep_golden_safe(tmp_path: Path):
 
 
 @pytest.mark.golden()
-def test_golden(tmp_path):
+def test_golden():
+    work_path = Path.cwd()
     safe_name = 'S1A_IW_SLC__1SSV_20240103T015108_20240103T015112_051936_064669_51EE.SAFE'
-    golden_safe = (tmp_path / 'golden' / safe_name).resolve()
-    new_safe = (tmp_path / safe_name).resolve()
+    golden_safe = (work_path / 'golden' / safe_name).resolve()
+    new_safe = (work_path / safe_name).resolve()
 
-    prep_golden_safe(tmp_path)
+    prep_golden_safe(work_path)
 
     with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
         mock_get_time_tag.return_value = '2024:01:01 00:00:00'
@@ -51,7 +52,7 @@ def test_golden(tmp_path):
             footprint=box(*[-117.3, 35.5, -117.2, 35.6]),
             polarizations=['VV', 'VH'],
             keep_files=True,
-            work_dir=tmp_path,
+            work_dir=work_path,
         )
 
     golden_files = sorted([x.resolve() for x in golden_safe.rglob('*')])
