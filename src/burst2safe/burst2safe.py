@@ -2,7 +2,8 @@
 
 import warnings
 from argparse import ArgumentParser
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -85,18 +86,26 @@ def find_bursts(
     return results
 
 
-def download_bursts(burst_infos: Iterable[BurstInfo]):
+def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
+    """Download the burst data and metadata files using multiple workers.
+
+    Args:
+        burst_infos: A list of BurstInfo objects
+    """
     downloads = {}
     for burst_info in burst_infos:
         downloads[burst_info.data_path] = burst_info.data_url
         downloads[burst_info.metadata_path] = burst_info.metadata_url
-    download_info = [(key.parent, key.name, value) for key, value in downloads.items()]
+    download_info = [(value, key.parent, key.name) for key, value in downloads.items()]
+    urls, dirs, names = zip(*download_info)
 
-    dirs, names, urls = zip(*download_info)
-    # TODO: bug in asf_search (issue #282) requires a new session for each download
-    sessions = [asf_search.ASFSession() for _ in range(len(urls))]
-    with ThreadPoolExecutor() as executor:
-        executor.map(asf_search.download_url, urls, dirs, names, sessions)
+    session = asf_search.ASFSession()
+    n_workers = min(len(urls), max(cpu_count() - 2, 1))
+    if n_workers == 1:
+        asf_search.download_url(urls[0], dirs[0], names[1], session)
+    else:
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            executor.map(asf_search.download_url, urls, dirs, names, [session] * len(urls))
 
 
 def burst2safe(
