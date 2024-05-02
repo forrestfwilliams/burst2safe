@@ -102,7 +102,8 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     session = asf_search.ASFSession()
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:
-        asf_search.download_url(urls[0], dirs[0], names[1], session)
+        for url, dir, name in zip(urls, dirs, names):
+            asf_search.download_url(url, dir, name, session)
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
             executor.map(asf_search.download_url, urls, dirs, names, [session] * len(urls))
