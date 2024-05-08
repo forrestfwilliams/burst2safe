@@ -5,7 +5,6 @@ from argparse import ArgumentParser
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from pathlib import Path
-from time import sleep
 from typing import Iterable, List, Optional
 
 import asf_search
@@ -14,7 +13,7 @@ from shapely import box
 from shapely.geometry import Polygon
 
 from burst2safe.safe import Safe
-from burst2safe.utils import BurstInfo, get_burst_infos, optional_wd
+from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos, optional_wd
 
 
 warnings.filterwarnings('ignore')
@@ -85,34 +84,6 @@ def find_bursts(
             '(Orbit, Start ID, End ID, Swaths, and Polarizations.'
         )
     return results
-
-
-def download_url_with_retries(
-    url: str, path: str, filename: str = None, session: asf_search.ASFSession = None, max_retries: int = 3
-) -> None:
-    """Download a file using asf_search.download_url with retries.
-
-    Args:
-        url: The URL to download
-        path: The path to save the file to
-        filename: The name of the file to save
-        session: The ASF session to use
-        max_retries: The maximum number of retries
-    """
-    n_retries = 0
-    file_exists = False
-    while n_retries < max_retries and not file_exists:
-        if n_retries > 0:
-            sleep(8**n_retries)
-
-        asf_search.download_url(url, path, filename, session)
-
-        n_retries += 1
-        if Path(path, filename).exists():
-            file_exists = True
-
-    if not file_exists:
-        raise ValueError(f'Failed to download {filename} after {max_retries} attempts.')
 
 
 def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
