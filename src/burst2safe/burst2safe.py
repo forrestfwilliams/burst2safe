@@ -13,7 +13,7 @@ from shapely import box
 from shapely.geometry import Polygon
 
 from burst2safe.safe import Safe
-from burst2safe.utils import BurstInfo, get_burst_infos, optional_wd
+from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos, optional_wd
 
 
 warnings.filterwarnings('ignore')
@@ -103,10 +103,10 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:
         for url, dir, name in zip(urls, dirs, names):
-            asf_search.download_url(url, dir, name, session)
+            download_url_with_retries(url, dir, name, session)
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
-            executor.map(asf_search.download_url, urls, dirs, names, [session] * len(urls))
+            executor.map(download_url_with_retries, urls, dirs, names, [session] * len(urls))
 
 
 def burst2safe(

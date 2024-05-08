@@ -6,6 +6,7 @@ dependencies:
   - python
   - pip
   - gdal
+  - shapely>=2
   - numpy
   - lxml
   - tifffile
