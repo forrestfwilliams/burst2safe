@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from pathlib import Path
+from time import sleep
 from typing import Iterable, List, Optional
 
 import asf_search
@@ -86,6 +87,34 @@ def find_bursts(
     return results
 
 
+def download_url_with_retries(
+    url: str, path: str, filename: str = None, session: asf_search.ASFSession = None, max_retries: int = 3
+) -> None:
+    """Download a file using asf_search.download_url with retries.
+
+    Args:
+        url: The URL to download
+        path: The path to save the file to
+        filename: The name of the file to save
+        session: The ASF session to use
+        max_retries: The maximum number of retries
+    """
+    n_retries = 0
+    file_exists = False
+    while n_retries < max_retries and not file_exists:
+        if n_retries > 0:
+            sleep(8**n_retries)
+
+        asf_search.download_url(url, path, filename, session)
+
+        n_retries += 1
+        if Path(path, filename).exists():
+            file_exists = True
+
+    if not file_exists:
+        raise ValueError(f'Failed to download {filename} after {max_retries} attempts.')
+
+
 def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     """Download the burst data and metadata files using multiple workers.
 
@@ -103,10 +132,10 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:
         for url, dir, name in zip(urls, dirs, names):
-            asf_search.download_url(url, dir, name, session)
+            download_url_with_retries(url, dir, name, session)
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
-            executor.map(asf_search.download_url, urls, dirs, names, [session] * len(urls))
+            executor.map(download_url_with_retries, urls, dirs, names, [session] * len(urls))
 
 
 def burst2safe(
