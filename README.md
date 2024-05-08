@@ -94,6 +94,21 @@ A full accounting of omitted datasets and differing fields can be found below:
 ### IPF Version Compatibility
 At this time, we are not aware of any compatibility issues with older Sentinel-1 Instrument Processing Facility (IPF) versions. However, if you do encounter any incompatibilities [please open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new), so we can fix it!
 
+## Developer Setup
+1. Ensure that conda is installed on your system (we recommend using [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) to reduce setup times).
+2. Download a local version of the `burst2safe` repository (`git clone https://github.com/forrestfwilliams/burst2safe.git`)
+3. In the base directory for this project call `mamba env create -f environment.yml` to create your Python environment, then activate it (`mamba activate burst2safe`)
+4. Finally, install a development version of the package (`python -m pip install -e .`)
+
+To run all commands in sequence use:
+```bash
+git clone https://github.com/ASFHyP3/hyp3-isce2.git
+cd hyp3-isce2
+mamba env create -f environment.yml
+mamba activate hyp3-isce2
+python -m pip install -e .
+```
+
 ## License
 `burst2safe` is licensed under the BSD 2-Clause License. See the LICENSE file for more details.
 
