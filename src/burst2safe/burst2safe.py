@@ -14,6 +14,7 @@ from shapely.geometry import Polygon
 
 from burst2safe.safe import Safe
 from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos, optional_wd
+from burst2safe.auth import get_earthdata_credentials
 
 
 warnings.filterwarnings('ignore')
@@ -99,7 +100,8 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     download_info = [(value, key.parent, key.name) for key, value in downloads.items()]
     urls, dirs, names = zip(*download_info)
 
-    session = asf_search.ASFSession()
+    username, password = get_earthdata_credentials()
+    session = asf_search.ASFSession().auth_with_creds(username, password)
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:
         for url, dir, name in zip(urls, dirs, names):
