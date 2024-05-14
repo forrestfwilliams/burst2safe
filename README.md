@@ -3,6 +3,14 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 
 **This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
 
+## Credentials
+To use `burst2safe`, you must provide your Earthdata Login credentials via two environment variables 
+(`EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD`), or via your `.netrc` file.
+
+If you do not already have an Earthdata account, you can sign up [here](https://urs.earthdata.nasa.gov/home). 
+
+If you would like to set up Earthdata Login via your `.netrc` file, check out this [guide](https://harmony.earthdata.nasa.gov/docs#getting-started) to get started.
+
 ## Usage
 To use the tool, install it via pip:
 
