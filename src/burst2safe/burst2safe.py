@@ -167,6 +167,7 @@ def main() -> None:
     parser.add_argument('--orbit', type=int, help='The absolute orbit number of the bursts')
     parser.add_argument('--bbox', type=float, nargs=4, help='Bounding box of the bursts (W S E N in lat/lon)')
     parser.add_argument('--pols', type=str, nargs='+', help='The polarizations of the bursts (i.e., VV VH)')
+    parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
     args = parser.parse_args()
 
@@ -181,4 +182,5 @@ def main() -> None:
         footprint=args.bbox,
         polarizations=args.pols,
         keep_files=args.keep_files,
+        work_dir=args.output_dir,
     )

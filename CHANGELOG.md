@@ -11,6 +11,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 * Polarization code now accurately reflects bursts contained in SAFE.
 
+### Added
+* CLI argument for specifying output directory
+
 ## [0.3.4]
 
 ### Added
