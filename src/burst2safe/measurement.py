@@ -21,6 +21,7 @@ class Measurement:
         Args:
             burst_infos: A list of BurstInfo objects
             gcps: A list of GeoPoint objects
+            ipf_version: The IPF version of the measurement data
             image_number: The image number of the measurement
         """
         self.burst_infos = burst_infos
@@ -29,6 +30,7 @@ class Measurement:
         self.image_number = image_number
 
         self.swath = self.burst_infos[0].swath
+        self.s1_platform = self.burst_infos[0].slc_granule[2].upper()
 
         burst_lengths = sorted(list(set([info.length for info in burst_infos])))
         if len(burst_lengths) != 1:
@@ -100,8 +102,7 @@ class Measurement:
         dataset.SetGCPs(gdal_gcps, srs.ExportToWkt())
 
         dataset.SetMetadataItem('TIFFTAG_DATETIME', self.get_time_tag())
-        # TODO make sure A/B is being set correctly.
-        dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', 'Sentinel-1A IW SLC L1')
+        dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', f'Sentinel-1{self.s1_platform} IW SLC L1')
         dataset.SetMetadataItem('TIFFTAG_SOFTWARE', f'Sentinel-1 IPF {self.version}')
 
     def create_geotiff(self, out_path: Path, update_info=True):
