@@ -1,4 +1,5 @@
 from collections import namedtuple
+from copy import deepcopy
 
 import pytest
 from shapely.geometry import Polygon
@@ -45,9 +46,30 @@ class TestSafe:
             Safe.check_group_validity(swath_nonoverlap)
 
     def test_get_name(self, burst_infos, tmp_path):
-        safe = Safe(burst_infos, work_dir=tmp_path)
+        tmp_bursts = [deepcopy(x) for x in burst_infos]
+        safe = Safe(tmp_bursts, work_dir=tmp_path)
         golden_name = 'S1A_IW_SLC__1SSV_20240408T015108_20240408T015111_053336_06778C_0000.SAFE'
-        assert safe.get_name(safe.burst_infos) == golden_name
+        assert safe.get_name() == golden_name
+
+        tmp_bursts2 = [deepcopy(x) for x in [burst_infos[0], burst_infos[1], burst_infos[0], burst_infos[1]]]
+        tmp_bursts2[2].polarization = 'VH'
+        tmp_bursts2[3].polarization = 'VH'
+        safe = Safe(tmp_bursts2, work_dir=tmp_path)
+        assert safe.get_name()[14:16] == 'DV'
+
+        tmp_bursts3 = [deepcopy(x) for x in burst_infos]
+        tmp_bursts3[0].polarization = 'HH'
+        tmp_bursts3[1].polarization = 'HH'
+        safe = Safe(tmp_bursts3, work_dir=tmp_path)
+        assert safe.get_name()[14:16] == 'SH'
+
+        tmp_bursts4 = [deepcopy(x) for x in [burst_infos[0], burst_infos[1], burst_infos[0], burst_infos[1]]]
+        tmp_bursts4[0].polarization = 'HH'
+        tmp_bursts4[1].polarization = 'HH'
+        tmp_bursts4[2].polarization = 'HV'
+        tmp_bursts4[3].polarization = 'HV'
+        safe = Safe(tmp_bursts4, work_dir=tmp_path)
+        assert safe.get_name()[14:16] == 'DH'
 
     def test_group_burst_infos(self):
         BurstStub = namedtuple('BurstStub', ['swath', 'polarization', 'burst_id'])
@@ -86,7 +108,7 @@ class TestSafe:
     def test_create_dir_structure(self, burst_infos, tmp_path):
         safe = Safe(burst_infos, work_dir=tmp_path)
         safe.create_dir_structure()
-        assert safe.safe_path == tmp_path / safe.get_name(safe.burst_infos)
+        assert safe.safe_path == tmp_path / safe.get_name()
         assert (safe.safe_path / 'measurement').exists()
         assert (safe.safe_path / 'annotation').exists()
         assert (safe.safe_path / 'annotation' / 'calibration').exists()

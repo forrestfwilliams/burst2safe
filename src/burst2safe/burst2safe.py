@@ -12,9 +12,9 @@ from asf_search.Products.S1BurstProduct import S1BurstProduct
 from shapely import box
 from shapely.geometry import Polygon
 
+from burst2safe.auth import get_earthdata_credentials
 from burst2safe.safe import Safe
 from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos, optional_wd
-from burst2safe.auth import get_earthdata_credentials
 
 
 warnings.filterwarnings('ignore')
