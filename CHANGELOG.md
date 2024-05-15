@@ -10,9 +10,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * Polarization code now accurately reflects bursts contained in SAFE.
+* Measurement GeoTiff metadata now correctly specifies Sentinel-1 A or B.
 
 ### Added
-* CLI argument for specifying output directory
+* CLI argument for specifying output directory.
 
 ## [0.3.4]
 
