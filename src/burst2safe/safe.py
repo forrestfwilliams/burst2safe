@@ -28,7 +28,7 @@ class Safe:
         self.check_group_validity(self.burst_infos)
 
         self.grouped_burst_infos = self.group_burst_infos(self.burst_infos)
-        self.name = self.get_name(self.burst_infos)
+        self.name = self.get_name()
         self.safe_path = self.work_dir / self.name
         self.swaths = []
         self.manifest = None
@@ -101,8 +101,7 @@ class Safe:
             if np.abs(max_diff) > 1:
                 raise ValueError(f'Products from swaths {swath1} and {swath2} do not overlap')
 
-    @staticmethod
-    def get_name(burst_infos: Iterable[BurstInfo], unique_id: str = '0000') -> str:
+    def get_name(self, unique_id: str = '0000') -> str:
         """Create a name for the SAFE file.
 
         Args:
@@ -112,12 +111,18 @@ class Safe:
         Returns:
             The name of the SAFE file
         """
-        platform, beam_mode, product_type = burst_infos[0].slc_granule.split('_')[:3]
-        product_info = f'1SS{burst_infos[0].polarization[0]}'
-        min_date = min([x.date for x in burst_infos]).strftime('%Y%m%dT%H%M%S')
-        max_date = max([x.date for x in burst_infos]).strftime('%Y%m%dT%H%M%S')
-        absolute_orbit = f'{burst_infos[0].absolute_orbit:06d}'
-        mission_data_take = burst_infos[0].slc_granule.split('_')[-2]
+
+        platform, beam_mode, product_type = self.burst_infos[0].slc_granule.split('_')[:3]
+
+        pol_codes = {'HH': 'SH', 'VV': 'SV', 'HH_HV': 'DH', 'VH_VV': 'DV'}
+        pols = sorted(list(set([x.polarization for x in self.burst_infos])))
+        pol_code = pol_codes['_'.join(pols)]
+        product_info = f'1S{pol_code}'
+
+        min_date = min([x.date for x in self.burst_infos]).strftime('%Y%m%dT%H%M%S')
+        max_date = max([x.date for x in self.burst_infos]).strftime('%Y%m%dT%H%M%S')
+        absolute_orbit = f'{self.burst_infos[0].absolute_orbit:06d}'
+        mission_data_take = self.burst_infos[0].slc_granule.split('_')[-2]
         product_name = f'{platform}_{beam_mode}_{product_type}__{product_info}_{min_date}_{max_date}_{absolute_orbit}_{mission_data_take}_{unique_id}.SAFE'
         return product_name
 
@@ -232,7 +237,7 @@ class Safe:
 
     def update_product_identifier(self):
         """Update the product identifier using the CRC of the manifest file."""
-        new_new = self.get_name(self.burst_infos, unique_id=self.manifest.crc)
+        new_new = self.get_name(unique_id=self.manifest.crc)
         new_path = self.work_dir / new_new
         if new_path.exists():
             shutil.rmtree(new_path)
