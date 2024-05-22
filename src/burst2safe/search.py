@@ -25,7 +25,7 @@ def find_granules(granules: Iterable[str]) -> List[S1BurstProduct]:
 
     for granule in granules:
         if granule not in found_granules:
-            raise ValueError(f'ASF Search failed to find {granule}.')
+            raise ValueError(f'Failed to find granule {granule}. Bursts may not be populated yet.')
     return list(results)
 
 
@@ -62,6 +62,43 @@ def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> Lis
     return search_results
 
 
+def find_swath_pol_group(
+    search_results: List[S1BurstProduct], pol: str, swath: Optional[str], min_bursts: int
+) -> List[S1BurstProduct]:
+    """Find a group of bursts with the same polarization and swath.
+    Add surrounding bursts if the group is too small.
+
+    Args:
+        search_results: A list of S1BurstProduct objects
+        pol: The polarization to search for
+        swath: The swath to search for
+        min_bursts: The minimum number of bursts per swath
+
+    Returns:
+        An updated list of S1BurstProduct objects
+    """
+    search_results = search_results
+    if swath:
+        search_results = [result for result in search_results if result.properties['swath'] == swath]
+    search_results = [result for result in search_results if result.properties['polarization'] == pol]
+
+    if len(search_results) < min_bursts:
+        search_results = add_surrounding_bursts(search_results, min_bursts)
+
+    params = [f'polarization {pol}']
+    if swath:
+        params.append(f'swath {swath}')
+    params = ', '.join(params)
+
+    if not search_results:
+        raise ValueError(f'No bursts found for {params}. Bursts may not be populated yet.')
+
+    if len(search_results) < min_bursts:
+        raise ValueError(f'Less than {min_bursts} bursts found for {params}. Bursts may not be populated yet.')
+
+    return search_results
+
+
 def find_group(
     orbit: int, footprint: Polygon, polarizations: Iterable[str], swaths: Optional[str] = None, min_bursts: int = 1
 ) -> List[S1BurstProduct]:
@@ -91,27 +128,8 @@ def find_group(
     search_results = asf_search.geo_search(dataset=dataset, absoluteOrbit=orbit, intersectsWith=footprint.wkt)
     final_results = []
     for pol, swath in product(polarizations, swaths):
-        sub_results = search_results
-        if swath:
-            sub_results = [result for result in sub_results if result.properties['swath'] == swath]
-        sub_results = [result for result in sub_results if result.properties['polarization'] == pol]
-
-        params = [f'orbit {orbit}', f'footprint {footprint}', f'polarization {pol}']
-        if swath:
-            params.append(f'swath {swath}')
-        params = ', '.join(params)
-
-        if not sub_results:
-            raise ValueError(f'No bursts found for {params}. Bursts may not be populated yet.')
-
-        if len(sub_results) < min_bursts:
-            sub_results = add_surrounding_bursts(sub_results, min_bursts)
-
-        if len(sub_results) < min_bursts:
-            raise ValueError(f'Less than {min_bursts} bursts found for {params}. Bursts may not be populated yet.')
-
+        sub_results = find_swath_pol_group(search_results, pol, swath, min_bursts)
         final_results.extend(sub_results)
-    breakpoint()
     return final_results
 
 
