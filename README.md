@@ -25,12 +25,12 @@ conda install -c conda-forge burst2safe
 
 Then, run the `burst2safe` command line tool using the following structure:
 ```bash
-burst2safe --orbit 32861 --bbox 53.57 27.54 53.78 27.60 --pols VV VH
+burst2safe --orbit 32861 --extent 53.57 27.54 53.78 27.60 --pols VV VH
 ```
 Where:
 
 * `--orbit` is the absolute orbit number of the Sentinel-1 data.
-* `--bbox` is the bounding box of the area of interest in the format `minlon minlat maxlon maxlat`.
+* `--extent` is the area of interest as a bounding box in the format `minlon minlat maxlon maxlat` or as a path to an GDAL-compatible vector file.
 * `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
 
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
