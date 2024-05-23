@@ -11,7 +11,7 @@ If you do not already have an Earthdata account, you can sign up [here](https://
 
 If you would like to set up Earthdata Login via your `.netrc` file, check out this [guide](https://harmony.earthdata.nasa.gov/docs#getting-started) to get started.
 
-## Usage
+## Setup
 To use the tool, install it via pip:
 
 ```bash
@@ -22,7 +22,7 @@ Or conda:
 ```bash
 conda install -c conda-forge burst2safe
 ```
-
+## burst2safe usage
 Then, run the `burst2safe` command line tool using the following structure:
 ```bash
 burst2safe --orbit 32861 --extent 53.57 27.54 53.78 27.60 --pols VV VH
@@ -32,6 +32,10 @@ Where:
 * `--orbit` is the absolute orbit number of the Sentinel-1 data.
 * `--extent` is the area of interest as a bounding box in the format `minlon minlat maxlon maxlat` or as a path to an GDAL-compatible vector file.
 * `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
+
+In addition, the user can specify the swaths they want data for using the `--swaths` argument, and you can specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
+
+The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
 
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
@@ -48,6 +52,20 @@ To be eligible for processing, all burst granules must:
 The tool should raise an error if any of these conditions are not met.
 
 The output SAFE file will be created in the current directory.
+
+## burst2stack usage
+For those who want to create stacks of SAFEs (SAFEs covering the same region but from different dates), we have created the `burst2stack` tool. This tool has a similar structure as `burst2safe`, but with small changes to CLI arguments.
+
+This includes:
+- Exclusion of the granules pathway
+- Specifying the relative instead of absolute orbit number
+- Adding a start and end date argument
+
+An example command that runs `burst2stack` for the same area as the previous example, but for a range of dates can be seen below:
+```bash
+burst2stack --rel-orbit 64 --start-date 2020-06-03 --end-date 2020-06-17 --extent 53.57 27.54 53.78 27.60 --pols VV
+```
+The usage of `
 
 ## Strategy
 `burst2safe` combines and reformats individual bursts into a SAFE file following the procedure described in the [Sentinel-1 Product Specification Document](https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/document-library/-/asset_publisher/1dO7RF5fJMbd/content/sentinel-1-product-specification-from-ipf-360?_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId=4846613&_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_redirect=https%3A%2F%2Fsentinel.esa.int%2Fweb%2Fsentinel%2Fuser-guides%2Fsentinel-1-sar%2Fdocument-library%3Fp_p_id%3Dcom_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd%26p_p_lifecycle%3D0%26p_p_state%3Dnormal%26p_p_mode%3Dview%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId%3D4846613%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_cur%3D0%26p_r_p_resetCur%3Dfalse)

@@ -2,6 +2,7 @@
 
 import warnings
 from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
 from itertools import product
 from multiprocessing import cpu_count
 from pathlib import Path
@@ -35,6 +36,29 @@ def find_granules(granules: Iterable[str]) -> List[S1BurstProduct]:
         granule_str = ', '.joins(missing_granules)
         raise ValueError(f'Failed to find granule(s) {granule_str}. Check search parameters on Vertex.')
     return list(results)
+
+
+def find_stack_orbits(rel_orbit: int, extent: Polygon, start_date: datetime, end_date: datetime) -> List[int]:
+    """Find all orbits in a stack using ASF Search.
+
+    Args:
+        rel_orbit: The relative orbit number of the stack
+        start_date: The start date of the stack
+        end_date: The end date of the stack
+
+    Returns:
+        List of absolute orbit numbers
+    """
+    dataset = asf_search.constants.DATASET.SLC_BURST
+    search_results = asf_search.geo_search(
+        dataset=dataset,
+        relativeOrbit=rel_orbit,
+        intersectsWith=extent.centroid.wkt,
+        start=start_date.isoformat(),
+        end=end_date.isoformat(),
+    )
+    absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
+    return absolute_orbits
 
 
 def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> List[S1BurstProduct]:
