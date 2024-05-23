@@ -3,15 +3,8 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 
 **This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
 
-## Credentials
-To use `burst2safe`, you must provide your Earthdata Login credentials via two environment variables 
-(`EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD`), or via your `.netrc` file.
-
-If you do not already have an Earthdata account, you can sign up [here](https://urs.earthdata.nasa.gov/home). 
-
-If you would like to set up Earthdata Login via your `.netrc` file, check out this [guide](https://harmony.earthdata.nasa.gov/docs#getting-started) to get started.
-
 ## Setup
+### Installation
 To use the tool, install it via pip:
 
 ```bash
@@ -22,15 +15,24 @@ Or conda:
 ```bash
 conda install -c conda-forge burst2safe
 ```
+
+### Credentials
+To use `burst2safe`, you must provide your Earthdata Login credentials via two environment variables 
+(`EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD`), or via your `.netrc` file.
+
+If you do not already have an Earthdata account, you can sign up [here](https://urs.earthdata.nasa.gov/home). 
+
+If you would like to set up Earthdata Login via your `.netrc` file, check out this [guide](https://harmony.earthdata.nasa.gov/docs#getting-started) to get started.
+
 ## burst2safe usage
-Then, run the `burst2safe` command line tool using the following structure:
+The `burst2safe` command line tool can be run using the following structure:
 ```bash
 burst2safe --orbit 32861 --extent 53.57 27.54 53.78 27.60 --pols VV VH
 ```
 Where:
 
 * `--orbit` is the absolute orbit number of the Sentinel-1 data.
-* `--extent` is the area of interest as a bounding box in the format `minlon minlat maxlon maxlat` or as a path to an GDAL-compatible vector file.
+* `--extent` is the area of interest as a bounding box in the format `minlon minlat maxlon maxlat` or as a path to a GDAL-compatible vector file.
 * `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
 
 In addition, the user can specify the swaths they want data for using the `--swaths` argument, and you can specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
@@ -51,17 +53,17 @@ To be eligible for processing, all burst granules must:
 
 The tool should raise an error if any of these conditions are not met.
 
-The output SAFE file will be created in the current directory.
+The output SAFE file will be created in the directory specified using the `--output-dir` argument, which defaults to the current directory.
 
 ## burst2stack usage
-For those who want to create stacks of SAFEs (SAFEs covering the same region but from different dates), we have created the `burst2stack` tool. This tool has a similar structure as `burst2safe`, but with small changes to CLI arguments.
+For those who want to create stacks of SAFEs (SAFEs covering the same region but from different dates), we have created the `burst2stack` tool. This tool has a similar structure as `burst2safe`, but with small changes to the CLI arguments.
 
 This includes:
 - Exclusion of the granules pathway
 - Specifying the relative instead of absolute orbit number
-- Adding a start and end date argument
+- Adding a start date and end date argument
 
-An example command that runs `burst2stack` for the same area as the previous example, but for a range of dates can be seen below:
+An example command that runs `burst2stack` for the same area as the previous examples, but for a range of dates can be seen below:
 ```bash
 burst2stack --rel-orbit 64 --start-date 2020-06-03 --end-date 2020-06-17 --extent 53.57 27.54 53.78 27.60 --pols VV
 ```
