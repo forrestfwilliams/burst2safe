@@ -52,7 +52,7 @@ def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> Lis
     if max_id - min_id + 1 != min_bursts:
         max_id += 1
 
-    full_burst_ids = [f'{relative_orbit}_{id}_{swath}' for id in range(min_id, max_id + 1)]
+    full_burst_ids = [f'{relative_orbit}_{id:06}_{swath}' for id in range(min_id, max_id + 1)]
     search_results = asf_search.search(
         dataset=asf_search.constants.DATASET.SLC_BURST,
         absoluteOrbit=absolute_orbit,
