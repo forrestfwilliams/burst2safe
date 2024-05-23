@@ -4,8 +4,9 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Iterable, Optional
 
+from osgeo import ogr, osr
 from shapely import box
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, shape
 
 from burst2safe.safe import Safe
 from burst2safe.search import download_bursts, find_bursts
@@ -72,24 +73,68 @@ def burst2safe(
     return safe_path
 
 
+def vector_to_shapely_latlon_polygon(vector_file_path):
+    dataset = ogr.Open(vector_file_path)
+
+    if dataset is None:
+        raise ValueError(f'Could not open file: {vector_file_path}')
+
+    layer = dataset.GetLayer()
+
+    feature_count = layer.GetFeatureCount()
+    if feature_count != 1:
+        raise ValueError(f'File contains {feature_count} features, but exactly one is required.')
+
+    feature = layer.GetFeature(0)
+    geom = feature.GetGeometryRef()
+    if geom.GetGeometryType() != ogr.wkbPolygon:
+        raise ValueError('The feature is not a polygon.')
+
+    source_srs = layer.GetSpatialRef()
+    target_srs = osr.SpatialReference()
+    target_srs.ImportFromEPSG(4326)
+    if source_srs != target_srs:
+        transform = osr.CoordinateTransformation(source_srs, target_srs)
+        geom.Transform(transform)
+
+    polygon = shape(geom.ExportToJson())
+    dataset = None
+
+    return polygon
+
+
+def parse_args(args: ArgumentParser) -> ArgumentParser:
+    if args.pols:
+        args.pols = [pol.upper() for pol in args.pols]
+    if args.swaths:
+        args.swaths = [swath.upper() for swath in args.swaths]
+
+    if args.bbox and args.geom:
+        raise ValueError('Cannot specify both a bounding box and a geometry file.')
+
+    if args.bbox:
+        args.bbox = box(*args.bbox)
+
+    if args.geom:
+        args.geom = vector_to_shapely_latlon_polygon(args.geom)
+
+    return args
+
+
 def main() -> None:
     parser = ArgumentParser(description=DESCRIPTION)
     parser.add_argument('granules', nargs='*', help='List of bursts to convert to SAFE')
     parser.add_argument('--orbit', type=int, help='Absolute orbit number of the bursts')
-    parser.add_argument('--bbox', type=float, nargs=4, help='Bounding box of the bursts (W S E N in lat/lon)')
+    parser.add_argument(
+        '--bbox', type=float, nargs=4, default=None, help='Bounding box of the bursts (W S E N in lat/lon)'
+    )
+    parser.add_argument('--geom', type=str, default=None, help='Geomtry file specifying footprint of bursts')
     parser.add_argument('--pols', type=str, nargs='+', help='Plarizations of the bursts (i.e., VV VH)')
     parser.add_argument('--swaths', type=str, nargs='+', help='Swaths of the bursts (i.e., IW1 IW2 IW3)')
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
     args = parser.parse_args()
-
-    if args.bbox:
-        args.bbox = box(*args.bbox)
-    if args.pols:
-        args.pols = [pol.upper() for pol in args.pols]
-    if args.swaths:
-        args.swaths = [swath.upper() for swath in args.swaths]
 
     burst2safe(
         granules=args.granules,
