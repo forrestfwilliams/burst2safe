@@ -11,6 +11,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 * The ability to specify swaths and minimum number of bursts when using tool.
 
+### Changed
+* Moved all search/download functionality to `search.py` module.
+
 ## [0.3.5]
 
 ### Fixed
