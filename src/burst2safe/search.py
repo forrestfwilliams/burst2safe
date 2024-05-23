@@ -20,12 +20,20 @@ warnings.filterwarnings('ignore')
 
 
 def find_granules(granules: Iterable[str]) -> List[S1BurstProduct]:
+    """Find granules by name using ASF Search.
+
+    Args:
+        granules: A list of granule names
+
+    Returns:
+        A list of S1BurstProduct objects
+    """
     results = asf_search.search(product_list=granules)
     found_granules = [result.properties['fileID'] for result in results]
-
-    for granule in granules:
-        if granule not in found_granules:
-            raise ValueError(f'Failed to find granule {granule}. Bursts may not be populated yet.')
+    missing_granules = list(set(granules) - set(found_granules))
+    if missing_granules:
+        granule_str = ', '.joins(missing_granules)
+        raise ValueError(f'Failed to find granule(s) {granule_str}. Check search parameters on Vertex.')
     return list(results)
 
 
@@ -77,13 +85,9 @@ def find_swath_pol_group(
     Returns:
         An updated list of S1BurstProduct objects
     """
-    search_results = search_results
     if swath:
-        search_results = [result for result in search_results if result.properties['swath'] == swath]
+        search_results = [result for result in search_results if result.properties['burst']['subswath'] == swath]
     search_results = [result for result in search_results if result.properties['polarization'] == pol]
-
-    if len(search_results) < min_bursts:
-        search_results = add_surrounding_bursts(search_results, min_bursts)
 
     params = [f'polarization {pol}']
     if swath:
@@ -91,10 +95,13 @@ def find_swath_pol_group(
     params = ', '.join(params)
 
     if not search_results:
-        raise ValueError(f'No bursts found for {params}. Bursts may not be populated yet.')
+        raise ValueError(f'No bursts found for {params}. Check search parameters on Vertex.')
 
     if len(search_results) < min_bursts:
-        raise ValueError(f'Less than {min_bursts} bursts found for {params}. Bursts may not be populated yet.')
+        search_results = add_surrounding_bursts(search_results, min_bursts)
+
+    if len(search_results) < min_bursts:
+        raise ValueError(f'Less than {min_bursts} bursts found for {params}. Check search parameters on Vertex.')
 
     return search_results
 
