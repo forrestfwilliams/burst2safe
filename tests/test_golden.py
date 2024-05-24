@@ -37,7 +37,7 @@ def test_burst2safe():
 def test_golden():
     main_branch = 'main'
     develop_branch = 'develop'
-    
+
     work_path = Path.cwd()
     tars = [work_path / f'{main_branch}.tar', work_path / f'{develop_branch}.tar']
     for tar in tars:
@@ -54,7 +54,7 @@ def test_golden():
 
     main_set = set([f.relative_to(main_safe) for f in main_files])
     develop_set = set([f.relative_to(develop_safe) for f in develop_files])
-    
+
     only_in_main = [str(x) for x in main_set - develop_set]
     assert not only_in_main
 
