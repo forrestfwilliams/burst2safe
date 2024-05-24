@@ -47,6 +47,7 @@ def test_golden():
 
     main_safe = list((work_path / main_branch).glob('*.SAFE'))[0]
     develop_safe = list((work_path / develop_branch).glob('*.SAFE'))[0]
+    assert main_safe.name == develop_safe.name
 
     main_files = sorted([x.resolve() for x in main_safe.rglob('*')])
     develop_files = sorted([x.resolve() for x in develop_safe.rglob('*')])
