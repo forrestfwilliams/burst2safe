@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0]
+
+### Added
+* `burst2stack` tool for creating stacks of SAFEs.
+* The ability to specify swaths and minimum number of bursts when using tool.
+* The ability to specify the SAFE extent by either bounding box or vector file.
+
+### Fixed
+* `Safe.get_name()` so that it correctly parses `Safe` objects with only cross-pol data.
+
+### Changed
+* Moved all search/download functionality to `search.py` module.
+* `--bbox` argument to `--extent`.
+
 ## [0.3.5]
 
 ### Fixed

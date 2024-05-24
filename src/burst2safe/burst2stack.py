@@ -1,26 +1,29 @@
-"""A tool for converting ASF burst SLCs to the SAFE format"""
+"""A tool for converting stacks of ASF burst SLCs to stacks of SAFEs"""
 
 from argparse import ArgumentParser
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 
 from shapely import box
 from shapely.geometry import Polygon
 
-from burst2safe.safe import Safe
-from burst2safe.search import download_bursts, find_bursts
-from burst2safe.utils import get_burst_infos, optional_wd, vector_to_shapely_latlon_polygon
+from burst2safe.burst2safe import burst2safe
+from burst2safe.search import find_stack_orbits
+from burst2safe.utils import vector_to_shapely_latlon_polygon
 
 
-DESCRIPTION = """Convert a set of ASF burst SLCs to the ESA SAFE format.
-You can either provide a list of burst granules, or define a burst group by
-providing the absolute orbit number, extent, and polarizations arguments.
+DESCRIPTION = """Convert a stack of ASF burst SLCs to a stack of ESA SAFEs.
+This will produce a SAFE for each absolute orbit in the stack. You can
+define a stack by specifying a relaitve orbit number, start/end dates,
+an extent, and polarization(s).
 """
 
 
-def burst2safe(
-    granules: Optional[Iterable[str]] = None,
-    orbit: Optional[int] = None,
+def burst2stack(
+    rel_orbit: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     extent: Optional[Polygon] = None,
     polarizations: Optional[Iterable[str]] = None,
     swaths: Optional[Iterable[str]] = None,
@@ -28,50 +31,40 @@ def burst2safe(
     keep_files: bool = False,
     work_dir: Optional[Path] = None,
 ) -> Path:
-    """Convert a set of burst granules to the ESA SAFE format.
-
-    To be eligible for conversions, all burst granules must:
-    - Have the same acquisition mode
-    - Be from the same absolute orbit
-    - Be contiguous in time and space
-    - Have the same footprint for all included polarizations
+    """Convert a stack of burst granules to a stack of ESA SAFEs.
+    Wraps the burst2safe function to handle multiple dates.
 
     Args:
-        granules: A list of burst granules to convert to SAFE
-        orbit: The absolute orbit number of the bursts
+        rel_orbit: The relative orbit number of the bursts
+        start_date: The start date of the bursts
+        end_date: The end date of the bursts
         extent: The bounding box of the bursts
+        swaths: List of swaths to include
         polarizations: List of polarizations to include
         min_bursts: The minimum number of bursts per swath (default: 1)
+        keep_files: Keep the intermediate files
         work_dir: The directory to create the SAFE in (default: current directory)
     """
-    work_dir = optional_wd(work_dir)
-
-    products = find_bursts(granules, orbit, extent, polarizations, swaths, min_bursts)
-    burst_infos = get_burst_infos(products, work_dir)
-    print(f'Found {len(burst_infos)} burst(s).')
-
-    print('Check burst group validity...')
-    Safe.check_group_validity(burst_infos)
-
-    print('Downloading data...')
-    download_bursts(burst_infos)
-    print('Download complete.')
-
-    print('Creating SAFE...')
-    [info.add_shape_info() for info in burst_infos]
-    [info.add_start_stop_utc() for info in burst_infos]
-
-    safe = Safe(burst_infos, work_dir)
-    safe_path = safe.create_safe()
-    print('SAFE created!')
-
-    if not keep_files:
-        safe.cleanup()
-
-    return safe_path
+    absolute_orbits = find_stack_orbits(rel_orbit, extent, start_date, end_date)
+    print(f'Creating SAFEs for {len(absolute_orbits)} time periods...')
+    for orbit in absolute_orbits:
+        print()
+        burst2safe(
+            granules=None,
+            orbit=orbit,
+            extent=extent,
+            polarizations=polarizations,
+            swaths=swaths,
+            min_bursts=min_bursts,
+            keep_files=keep_files,
+            work_dir=work_dir,
+        )
 
 
 def parse_args(args: ArgumentParser) -> ArgumentParser:
+    args.start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
+    args.end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
+
     if args.pols:
         args.pols = [pol.upper() for pol in args.pols]
     if args.swaths:
@@ -89,8 +82,9 @@ def parse_args(args: ArgumentParser) -> ArgumentParser:
 
 def main() -> None:
     parser = ArgumentParser(description=DESCRIPTION)
-    parser.add_argument('granules', nargs='*', help='List of bursts to convert to SAFE')
-    parser.add_argument('--orbit', type=int, help='Absolute orbit number of the bursts')
+    parser.add_argument('--rel-orbit', type=int, help='Relative orbit number of the bursts')
+    parser.add_argument('--start-date', type=str, help='Start date of the bursts (YYYY-MM-DD)')
+    parser.add_argument('--end-date', type=str, help='End date of the bursts (YYYY-MM-DD)')
     parser.add_argument(
         '--extent',
         type=str,
@@ -102,12 +96,14 @@ def main() -> None:
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
+
     args = parser.parse_args()
     args = parse_args(args)
 
-    burst2safe(
-        granules=args.granules,
-        orbit=args.orbit,
+    burst2stack(
+        rel_orbit=args.rel_orbit,
+        start_date=args.start_date,
+        end_date=args.end_date,
         extent=args.extent,
         polarizations=args.pols,
         min_bursts=args.min_bursts,

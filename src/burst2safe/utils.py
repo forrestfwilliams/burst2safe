@@ -1,3 +1,4 @@
+import json
 import warnings
 from binascii import crc_hqx
 from dataclasses import dataclass
@@ -8,7 +9,8 @@ from typing import Dict, Iterable, List, Optional
 import asf_search
 import lxml.etree as ET
 from asf_search.Products.S1BurstProduct import S1BurstProduct
-from osgeo import gdal
+from osgeo import gdal, ogr, osr
+from shapely.geometry import shape
 
 
 gdal.UseExceptions()
@@ -262,3 +264,33 @@ def set_text(element: ET.Element, text: str | int) -> None:
         raise ValueError('Text must be a string or an integer.')
 
     element.text = str(text)
+
+
+def vector_to_shapely_latlon_polygon(vector_file_path):
+    dataset = ogr.Open(vector_file_path)
+
+    if dataset is None:
+        raise ValueError(f'Could not open file: {vector_file_path}')
+
+    layer = dataset.GetLayer()
+
+    feature_count = layer.GetFeatureCount()
+    if feature_count != 1:
+        raise ValueError(f'File contains {feature_count} features, but exactly one is required.')
+
+    feature = layer.GetFeature(0)
+    geom = feature.GetGeometryRef()
+    if geom.GetGeometryType() != ogr.wkbPolygon:
+        raise ValueError('The feature is not a polygon.')
+
+    source_srs = layer.GetSpatialRef()
+    if int(source_srs.GetAuthorityCode(None)) != 4326:
+        target_srs = osr.SpatialReference()
+        target_srs.ImportFromEPSG(4326)
+        transform = osr.CoordinateTransformation(source_srs, target_srs)
+        geom.Transform(transform)
+
+    polygon = shape(json.loads(geom.ExportToJson()))
+    dataset = None
+
+    return polygon

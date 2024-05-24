@@ -2,11 +2,14 @@ from collections import namedtuple
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Iterable
 from unittest.mock import patch
 
 import lxml
 import lxml.etree as ET
 import pytest
+from osgeo import ogr, osr
+from shapely.geometry import Polygon, box
 
 from burst2safe import utils
 
@@ -137,3 +140,41 @@ def test_flatten():
 
 def test_drop_duplicates():
     assert utils.drop_duplicates([1, 2, 3, 4, 4, 5, 6, 6]) == [1, 2, 3, 4, 5, 6]
+
+
+def create_polygon(out_path: Path, bounds: Iterable[Iterable[float]], epsg: int = 4326):
+    polygons = [box(*bound) for bound in bounds]
+    driver = ogr.GetDriverByName('GeoJSON')
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(epsg)
+
+    vector_file = driver.CreateDataSource(str(out_path))
+
+    layer = vector_file.CreateLayer('test', srs, geom_type=ogr.wkbPolygon)
+    for polygon in polygons:
+        feature = ogr.Feature(layer.GetLayerDefn())
+        feature.SetGeometry(ogr.CreateGeometryFromWkt(polygon.wkt))
+        layer.CreateFeature(feature)
+        feature = None
+    vector_file = None
+
+
+def test_vector_to_shapely_latlon_polygon(tmp_path):
+    vector_file = tmp_path / 'test.geojson'
+    bounds = [[0, 0, 1, 1]]
+
+    create_polygon(vector_file, bounds)
+    polygon = utils.vector_to_shapely_latlon_polygon(vector_file)
+    assert isinstance(polygon, Polygon)
+    assert polygon.bounds == (0, 0, 1, 1)
+
+    create_polygon(vector_file, bounds, 32606)
+    polygon = utils.vector_to_shapely_latlon_polygon(vector_file)
+    assert isinstance(polygon, Polygon)
+    assert polygon.bounds != (0, 0, 1, 1)
+
+    bounds.append([1, 1, 2, 2])
+    with pytest.raises(ValueError, match='File contains*'):
+        create_polygon(vector_file, bounds)
+        utils.vector_to_shapely_latlon_polygon(vector_file)
