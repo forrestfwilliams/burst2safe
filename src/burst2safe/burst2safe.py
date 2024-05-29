@@ -72,17 +72,30 @@ def burst2safe(
 
 
 def parse_args(args: ArgumentParser) -> ArgumentParser:
-    if args.pols:
-        args.pols = [pol.upper() for pol in args.pols]
-    if args.swaths:
-        args.swaths = [swath.upper() for swath in args.swaths]
+    using_granule = len(args.granules) > 0
+    keywords = [x is not None for x in [args.orbit, args.pols, args.swaths, args.extent]]
+    using_keywords = any(keywords)
+    all_keywords = all(keywords)
 
-    try:
-        args.extent = box(*[float(x) for x in args.extent])
-    except ValueError:
-        args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
-    except ValueError:
-        raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
+    if using_granule and using_keywords:
+        raise ValueError('Cannot provide both granules and orbit/pols/swaths/extent arguments.')
+
+    if not using_granule and not all_keywords:
+        raise ValueError('When not using the granules argument you must provide orbit, pols, swaths, and extent.')
+
+    if using_keywords:
+        if args.pols:
+            args.pols = [pol.upper() for pol in args.pols]
+        if args.swaths:
+            args.swaths = [swath.upper() for swath in args.swaths]
+
+        if args.extent:
+            try:
+                args.extent = box(*[float(x) for x in args.extent])
+            except ValueError:
+                args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
+            except ValueError:
+                raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
 
     return args
 
