@@ -1,6 +1,6 @@
 import json
 import warnings
-from argparse import ArgumentParser, Namespace
+from argparse import Namespace
 from binascii import crc_hqx
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -320,7 +320,7 @@ def reparse_args(args: Namespace, tool: str) -> Namespace:
 
     if using_granule and using_keywords:
         raise ValueError(f'Cannot provide both granules and any of {", ".join(keywords)} arguments.')
-    
+
     if not using_granule and not all(used_keyword):
         raise ValueError(f'Must provide at least {", ".join(keywords)} arguments.')
 
