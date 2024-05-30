@@ -131,19 +131,26 @@ def find_swath_pol_group(
 
 
 def find_group(
-    orbit: int, footprint: Polygon, polarizations: Iterable[str], swaths: Optional[str] = None, min_bursts: int = 1
+    orbit: int,
+    footprint: Polygon,
+    polarizations: Optional[Iterable] = None,
+    swaths: Optional[Iterable] = None,
+    min_bursts: int = 1,
 ) -> List[S1BurstProduct]:
     """Find burst groups using ASF Search.
 
     Args:
         orbit: The absolute orbit number of the bursts
         footprint: The bounding box of the bursts
-        polarizations: List of polarizations to include
+        polarizations: List of polarizations to include (default: VV)
+        swaths: List of swaths to include (default: all)
         min_bursts: The minimum number of bursts per swath (default: 1)
 
     Returns:
         A list of S1BurstProduct objects
     """
+    if polarizations is None:
+        polarizations = ['VV']
     bad_pols = set(polarizations) - set(['VV', 'VH', 'HV', 'HH'])
     if bad_pols:
         raise ValueError(f'Invalid polarizations: {" ".join(bad_pols)}')
@@ -184,13 +191,13 @@ def find_bursts(
     if granules:
         print('Using granule search...')
         results = find_granules(granules)
-    elif orbit and footprint and polarizations:
+    elif orbit and footprint:
         print('Using burst group search...')
         results = find_group(orbit, footprint, polarizations, swaths, min_bursts)
     else:
         raise ValueError(
-            'You must provide either a list of granules or minimum set burst group parameters'
-            '(Orbit, Footprint, and Polarizations).'
+            'You must provide either a list of granules or minimum set of group parameters'
+            '(orbit, and footprint).'
         )
     return results
 

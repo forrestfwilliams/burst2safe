@@ -11,6 +11,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 * Bug in CLI parsing of granule case for `burst2safe`.
 
+### Removed
+* `--pols` as a required argument for `burst2safe` and `burst2stack`. Default value is now `VV`.
+
 ## [0.4.0]
 
 ### Added
