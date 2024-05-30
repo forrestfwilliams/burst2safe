@@ -4,12 +4,11 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Iterable, Optional
 
-from shapely import box
 from shapely.geometry import Polygon
 
+from burst2safe import utils
 from burst2safe.safe import Safe
 from burst2safe.search import download_bursts, find_bursts
-from burst2safe.utils import get_burst_infos, optional_wd, vector_to_shapely_latlon_polygon
 
 
 DESCRIPTION = """Convert a set of ASF burst SLCs to the ESA SAFE format.
@@ -44,10 +43,10 @@ def burst2safe(
         min_bursts: The minimum number of bursts per swath (default: 1)
         work_dir: The directory to create the SAFE in (default: current directory)
     """
-    work_dir = optional_wd(work_dir)
+    work_dir = utils.optional_wd(work_dir)
 
     products = find_bursts(granules, orbit, extent, polarizations, swaths, min_bursts)
-    burst_infos = get_burst_infos(products, work_dir)
+    burst_infos = utils.get_burst_infos(products, work_dir)
     print(f'Found {len(burst_infos)} burst(s).')
 
     print('Check burst group validity...')
@@ -71,35 +70,6 @@ def burst2safe(
     return safe_path
 
 
-def parse_args(args: ArgumentParser) -> ArgumentParser:
-    using_granule = len(args.granules) > 0
-    keywords = [x is not None for x in [args.orbit, args.pols, args.swaths, args.extent]]
-    using_keywords = any(keywords)
-    all_keywords = all(keywords)
-
-    if using_granule and using_keywords:
-        raise ValueError('Cannot provide both granules and orbit/pols/swaths/extent arguments.')
-
-    if not using_granule and not all_keywords:
-        raise ValueError('When not using the granules argument you must provide orbit, pols, swaths, and extent.')
-
-    if using_keywords:
-        if args.pols:
-            args.pols = [pol.upper() for pol in args.pols]
-        if args.swaths:
-            args.swaths = [swath.upper() for swath in args.swaths]
-
-        if args.extent:
-            try:
-                args.extent = box(*[float(x) for x in args.extent])
-            except ValueError:
-                args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
-            except ValueError:
-                raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
-
-    return args
-
-
 def main() -> None:
     parser = ArgumentParser(description=DESCRIPTION)
     parser.add_argument('granules', nargs='*', help='List of bursts to convert to SAFE')
@@ -115,8 +85,8 @@ def main() -> None:
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
-    args = parser.parse_args()
-    args = parse_args(args)
+
+    args = utils.reparse_args(parser.parse_args(), tool='burst2safe')
 
     burst2safe(
         granules=args.granules,

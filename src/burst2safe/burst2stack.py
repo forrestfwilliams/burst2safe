@@ -5,12 +5,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 
-from shapely import box
 from shapely.geometry import Polygon
 
+from burst2safe import utils
 from burst2safe.burst2safe import burst2safe
 from burst2safe.search import find_stack_orbits
-from burst2safe.utils import vector_to_shapely_latlon_polygon
 
 
 DESCRIPTION = """Convert a stack of ASF burst SLCs to a stack of ESA SAFEs.
@@ -61,25 +60,6 @@ def burst2stack(
         )
 
 
-def parse_args(args: ArgumentParser) -> ArgumentParser:
-    args.start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
-    args.end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
-
-    if args.pols:
-        args.pols = [pol.upper() for pol in args.pols]
-    if args.swaths:
-        args.swaths = [swath.upper() for swath in args.swaths]
-
-    try:
-        args.extent = box(*[float(x) for x in args.extent])
-    except ValueError:
-        args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
-    except ValueError:
-        raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
-
-    return args
-
-
 def main() -> None:
     parser = ArgumentParser(description=DESCRIPTION)
     parser.add_argument('--rel-orbit', type=int, help='Relative orbit number of the bursts')
@@ -97,8 +77,7 @@ def main() -> None:
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
 
-    args = parser.parse_args()
-    args = parse_args(args)
+    args = utils.reparse_args(parser.parse_args(), tool='burst2stack')
 
     burst2stack(
         rel_orbit=args.rel_orbit,
