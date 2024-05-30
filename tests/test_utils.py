@@ -210,7 +210,7 @@ def test_reparse_args_burst2stack():
         utils.reparse_args(args1, 'burst2stack')
 
     args2 = MockArgs(
-        rel_orb=123,
+        rel_orbit=123,
         start_date='2021-01-01',
         end_date='2021-02-01',
         extent=['0', '0', '1', '1'],

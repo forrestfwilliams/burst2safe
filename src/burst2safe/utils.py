@@ -310,7 +310,7 @@ def reparse_args(args: Namespace, tool: str) -> Namespace:
     arg_dict = args.__dict__
     tool_keywords = {
         'burst2safe': ['orbit', 'extent', 'pols'],
-        'burst2stack': ['rel_orb', 'start_date', 'end_date', 'extent', 'pols'],
+        'burst2stack': ['rel_orbit', 'start_date', 'end_date', 'extent', 'pols'],
     }
     keywords = tool_keywords[tool]
 

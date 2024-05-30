@@ -54,8 +54,8 @@ def find_stack_orbits(rel_orbit: int, extent: Polygon, start_date: datetime, end
         dataset=dataset,
         relativeOrbit=rel_orbit,
         intersectsWith=extent.centroid.wkt,
-        start=start_date.isoformat(),
-        end=end_date.isoformat(),
+        start=start_date.strftime('%Y-%m-%d'),
+        end=end_date.strftime('%Y-%m-%d'),
     )
     absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
     return absolute_orbits
