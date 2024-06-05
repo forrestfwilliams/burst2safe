@@ -199,6 +199,11 @@ def test_reparse_args_burst2safe():
     assert out_args.swaths == ['IW1']
     assert out_args.extent == box(*[0, 0, 1, 1])
 
+    granules = ['S1_136231_IW2_20200604T022312_VV_7C85-BURST', 'S1_136232_IW2_20200604T022315_VV_7C85-BURST']
+    args4 = MockArgs(granules=granules)
+    out_args = utils.reparse_args(args4, 'burst2safe')
+    assert out_args.granules == granules
+
 
 def test_reparse_args_burst2stack():
     class MockArgs:
