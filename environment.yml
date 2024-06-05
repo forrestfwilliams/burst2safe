@@ -11,6 +11,7 @@ dependencies:
   - lxml
   - tifffile
   - asf_search
+  - dateparser!=1.1.0
   # For packaging, and testing
   - pytest
   - pytest-cov

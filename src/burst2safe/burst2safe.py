@@ -80,8 +80,10 @@ def main() -> None:
         nargs='+',
         help='Bounds (W S E N in lat/lon) or geometry file describing spatial extent',
     )
-    parser.add_argument('--pols', type=str, nargs='+', help='Plarizations of the bursts (i.e., VV VH)')
-    parser.add_argument('--swaths', type=str, nargs='+', help='Swaths of the bursts (i.e., IW1 IW2 IW3)')
+    parser.add_argument('--pols', type=str, nargs='+', help='Polarizations to include (i.e., VV VH). Default: VV')
+    parser.add_argument(
+        '--swaths', type=str, nargs='+', help='Swaths to include (i.e., IW1 IW2 IW3). Defaults to all swaths.'
+    )
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
