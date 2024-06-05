@@ -196,8 +196,7 @@ def find_bursts(
         results = find_group(orbit, footprint, polarizations, swaths, min_bursts)
     else:
         raise ValueError(
-            'You must provide either a list of granules or minimum set of group parameters'
-            '(orbit, and footprint).'
+            'You must provide either a list of granules or minimum set of group parameters (orbit, and footprint).'
         )
     return results
 
