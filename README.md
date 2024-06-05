@@ -27,21 +27,23 @@ If you would like to set up Earthdata Login via your `.netrc` file, check out th
 ## burst2safe usage
 The `burst2safe` command line tool can be run using the following structure:
 ```bash
-burst2safe --orbit 32861 --extent 53.57 27.54 53.78 27.60 --pols VV VH
+burst2safe --orbit 32861 --extent 53.57 27.54 53.78 27.60
 ```
 Where:
 
 * `--orbit` is the absolute orbit number of the Sentinel-1 data.
 * `--extent` is the area of interest as a bounding box in the format `minlon minlat maxlon maxlat` or as a path to a GDAL-compatible vector file.
-* `--pols` is the polarization of the Sentinel-1 data. Options are `VV`, `VH`, `HV`, and `HH`.
 
-In addition, the user can specify the swaths they want data for using the `--swaths` argument, and you can specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
+You can specify the `--pols` argument to select the desired polarizations to include. The options are `VV`, `VH`, `HV`, and `HH`. The default is `VV`.
 
+You can specify the `--swaths` argument to select the desired swaths to include. The options are `IW1`, `IW2`, and `IW3`. The default is to include all swaths.
+
+You can also specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
 The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
 
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
-burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST S1_136231_IW2_20200604T022312_VH_7C85-BURST S1_136232_IW2_20200604T022315_VH_7C85-BURST
+burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST
 ```
 This search is equivalent to the previous search.
 To be eligible for processing, all burst granules must:
@@ -65,7 +67,7 @@ This includes:
 
 An example command that runs `burst2stack` for the same area as the previous examples, but for a range of dates can be seen below:
 ```bash
-burst2stack --rel-orbit 64 --start-date 2020-06-03 --end-date 2020-06-17 --extent 53.57 27.54 53.78 27.60 --pols VV
+burst2stack --rel-orbit 64 --start-date 2020-06-03 --end-date 2020-06-17 --extent 53.57 27.54 53.78 27.60
 ```
 The usage of the `--extent`, `--pols`, `--swaths`, and `--min-bursts` arguments is the same as in `burst2safe`.
 
@@ -122,6 +124,9 @@ A full accounting of omitted datasets and differing fields can be found below:
 ### IPF Version Compatibility
 At this time, we are not aware of any compatibility issues with older Sentinel-1 Instrument Processing Facility (IPF) versions. However, if you do encounter any incompatibilities [please open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new), so we can fix it!
 
+### EW SLC Compatibility
+The tool is currently only compatible with the Sentinel-1 Interferometric Wide (IW) SLC data. If you would like to see support for Extra Wide (EW) SLC data, please open an issue!
+
 ## Developer Setup
 1. Ensure that conda is installed on your system (we recommend using [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) to reduce setup times).
 2. Download a local version of the `burst2safe` repository (`git clone https://github.com/forrestfwilliams/burst2safe.git`)
@@ -130,10 +135,10 @@ At this time, we are not aware of any compatibility issues with older Sentinel-1
 
 To run all commands in sequence use:
 ```bash
-git clone https://github.com/ASFHyP3/hyp3-isce2.git
-cd hyp3-isce2
+git clone https://github.com/forrestfwilliams/burst2safe.git
+cd burst2safe
 mamba env create -f environment.yml
-mamba activate hyp3-isce2
+mamba activate burst2safe
 python -m pip install -e .
 ```
 

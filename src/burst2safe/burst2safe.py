@@ -4,12 +4,11 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Iterable, Optional
 
-from shapely import box
 from shapely.geometry import Polygon
 
+from burst2safe import utils
 from burst2safe.safe import Safe
 from burst2safe.search import download_bursts, find_bursts
-from burst2safe.utils import get_burst_infos, optional_wd, vector_to_shapely_latlon_polygon
 
 
 DESCRIPTION = """Convert a set of ASF burst SLCs to the ESA SAFE format.
@@ -44,10 +43,10 @@ def burst2safe(
         min_bursts: The minimum number of bursts per swath (default: 1)
         work_dir: The directory to create the SAFE in (default: current directory)
     """
-    work_dir = optional_wd(work_dir)
+    work_dir = utils.optional_wd(work_dir)
 
     products = find_bursts(granules, orbit, extent, polarizations, swaths, min_bursts)
-    burst_infos = get_burst_infos(products, work_dir)
+    burst_infos = utils.get_burst_infos(products, work_dir)
     print(f'Found {len(burst_infos)} burst(s).')
 
     print('Check burst group validity...')
@@ -71,22 +70,6 @@ def burst2safe(
     return safe_path
 
 
-def parse_args(args: ArgumentParser) -> ArgumentParser:
-    if args.pols:
-        args.pols = [pol.upper() for pol in args.pols]
-    if args.swaths:
-        args.swaths = [swath.upper() for swath in args.swaths]
-
-    try:
-        args.extent = box(*[float(x) for x in args.extent])
-    except ValueError:
-        args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
-    except ValueError:
-        raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
-
-    return args
-
-
 def main() -> None:
     parser = ArgumentParser(description=DESCRIPTION)
     parser.add_argument('granules', nargs='*', help='List of bursts to convert to SAFE')
@@ -97,13 +80,15 @@ def main() -> None:
         nargs='+',
         help='Bounds (W S E N in lat/lon) or geometry file describing spatial extent',
     )
-    parser.add_argument('--pols', type=str, nargs='+', help='Plarizations of the bursts (i.e., VV VH)')
-    parser.add_argument('--swaths', type=str, nargs='+', help='Swaths of the bursts (i.e., IW1 IW2 IW3)')
+    parser.add_argument('--pols', type=str, nargs='+', help='Polarizations to include (i.e., VV VH). Default: VV')
+    parser.add_argument(
+        '--swaths', type=str, nargs='+', help='Swaths to include (i.e., IW1 IW2 IW3). Defaults to all swaths.'
+    )
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
-    args = parser.parse_args()
-    args = parse_args(args)
+
+    args = utils.reparse_args(parser.parse_args(), tool='burst2safe')
 
     burst2safe(
         granules=args.granules,

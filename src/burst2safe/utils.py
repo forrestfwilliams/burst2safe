@@ -1,5 +1,6 @@
 import json
 import warnings
+from argparse import Namespace
 from binascii import crc_hqx
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -10,7 +11,7 @@ import asf_search
 import lxml.etree as ET
 from asf_search.Products.S1BurstProduct import S1BurstProduct
 from osgeo import gdal, ogr, osr
-from shapely.geometry import shape
+from shapely.geometry import box, shape
 
 
 gdal.UseExceptions()
@@ -294,3 +295,51 @@ def vector_to_shapely_latlon_polygon(vector_file_path):
     dataset = None
 
     return polygon
+
+
+def reparse_args(args: Namespace, tool: str) -> Namespace:
+    """Parse the arguments for burst2safe and burst2stack CLIs.
+
+    Args:
+        args: The parsed argument namespace.
+        tool: The tool to parse arguments for (burst2safe or burst2stack).
+
+    Returns:
+        The parsed argument namespace.
+    """
+    arg_dict = args.__dict__
+    tool_keywords = {
+        'burst2safe': ['orbit', 'extent'],
+        'burst2stack': ['rel_orbit', 'start_date', 'end_date', 'extent'],
+    }
+    keywords = tool_keywords[tool]
+
+    using_granule = len(arg_dict.get('granules', [])) > 0
+    used_keyword = [arg_dict.get(x, None) is not None for x in keywords]
+    using_keywords = any(used_keyword)
+
+    if using_granule and using_keywords:
+        raise ValueError(f'Cannot provide both granules and any of {", ".join(keywords)} arguments.')
+
+    if not using_granule and not all(used_keyword):
+        raise ValueError(f'Must provide at least {", ".join(keywords)} arguments.')
+
+    if tool == 'burst2stack':
+        args.start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
+        args.end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
+
+    if using_keywords:
+        if args.pols:
+            args.pols = [pol.upper() for pol in args.pols]
+        if args.swaths:
+            args.swaths = [swath.upper() for swath in args.swaths]
+
+        if args.extent:
+            try:
+                args.extent = box(*[float(x) for x in args.extent])
+            except ValueError:
+                args.extent = vector_to_shapely_latlon_polygon(args.extent[0])
+            except ValueError:
+                raise ValueError('--extent cannot be interpreted as a bounding box or geometry file.')
+
+    return args
