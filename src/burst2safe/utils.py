@@ -149,7 +149,7 @@ def sort_burst_infos(burst_info_list: List[BurstInfo]) -> Dict:
     return burst_infos
 
 
-def optional_wd(wd: Optional[Path | str] = None) -> Path:
+def optional_wd(wd: Optional[str] = None) -> Path:
     """Return the working directory as a Path object
 
     Args:
@@ -254,7 +254,7 @@ def drop_duplicates(input_list: List) -> List:
     return list(dict.fromkeys(input_list))
 
 
-def set_text(element: ET.Element, text: str | int) -> None:
+def set_text(element: ET.Element, text: str) -> None:
     """Set the text of an element if it is not None.
 
     Args:
