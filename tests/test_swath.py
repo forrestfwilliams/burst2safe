@@ -53,10 +53,9 @@ class TestSwath:
         with pytest.raises(ValueError, match='All bursts must have consecutive burst IDs. Found:.*'):
             Swath.check_burst_group_validity(non_consecutive_burst_ids)
 
-    def test_get_name(self, burst_infos):
+    def test_get_swath_name(self, burst_infos):
         safe_path = Path('./S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D.SAFE')
-        swath = Swath(burst_infos, safe_path, '003.71', 1)
-        assert swath.get_name() == 's1a-iw2-slc-vv-20240408t015108-20240408t015114-053336-06778c-001'
+        assert Swath.get_swath_name(burst_infos, safe_path, 1) == 's1a-iw2-slc-vv-20240408t015108-20240408t015114-053336-06778c-001'
 
     def test_get_bbox(self, burst_infos):
         geo_points = [
