@@ -26,8 +26,6 @@ class Safe:
             work_dir: The directory to create the SAFE in
         """
         self.burst_infos = burst_infos
-        # FIXME: should only be true if IW2 not present
-        self.include_mid = include_mid
         self.work_dir = optional_wd(work_dir)
 
         self.check_group_validity(self.burst_infos)
@@ -41,6 +39,9 @@ class Safe:
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
         self.support_dir = self.get_support_dir()
+
+        swaths = list(set([burst.swath for burst in self.burst_infos]))
+        self.include_mid = 'IW2' in swaths and include_mid
 
         self.mid_prods = []
         self.mid_burst_infos = []
@@ -219,7 +220,7 @@ class Safe:
         if self.include_mid:
             for polarization in list(self.mid_burst_infos['IW2'].keys()):
                 mid_burst_infos = self.mid_burst_infos['IW2'][polarization]
-                annotation = Product(mid_burst_infos, self.version, image_number)
+                annotation = Product(mid_burst_infos, self.version, image_number, dummy=True)
                 annotation.assemble()
                 swath_name = Swath.get_swath_name(mid_burst_infos, self.safe_path, image_number)
                 annotation_name = self.safe_path / 'annotation' / f'{swath_name}.xml'
