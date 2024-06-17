@@ -56,6 +56,7 @@ def test_create_burst_info(tmp_path, search_result1):
     assert burst.burst_index == 7
     assert burst.direction == 'ASCENDING'
     assert burst.absolute_orbit == 123
+    assert burst.relative_orbit == 456
     assert burst.data_url == 'https://example.com/foo.zip'
     assert burst.metadata_url == 'https://example.com/foo.xml'
     assert burst.data_path == tmp_path / f'{burst_granule}.tiff'

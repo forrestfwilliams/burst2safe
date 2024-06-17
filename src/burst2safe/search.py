@@ -14,7 +14,7 @@ from asf_search.Products.S1BurstProduct import S1BurstProduct
 from shapely.geometry import Polygon
 
 from burst2safe.auth import get_earthdata_credentials
-from burst2safe.utils import BurstInfo, download_url_with_retries
+from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos
 
 
 warnings.filterwarnings('ignore')
@@ -223,3 +223,31 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
             executor.map(download_url_with_retries, urls, dirs, names, [session] * len(urls))
+
+
+def get_midswath_bursts(burst_infos: Iterable[BurstInfo]) -> List[BurstInfo]:
+    """Create BurstInfo objects for the mid-swath bursts.
+
+    Args:
+        burst_infos: A list of BurstInfo objects
+
+    Returns:
+        A list of BurstInfo objects for the mid-swath bursts
+    """
+    work_dir = burst_infos[0].data_path.parent
+    orbits = list(set([info.absolute_orbit for info in burst_infos]))
+    pols = list(set([info.polarization for info in burst_infos]))
+    full_burst_ids = list(set([f'{info.relative_orbit:03}_{info.burst_id:06}_IW2' for info in burst_infos]))
+
+    dataset = asf_search.constants.DATASET.SLC_BURST
+    search_results = asf_search.search(
+        dataset=dataset, absoluteOrbit=orbits, polarization=pols, fullBurstID=full_burst_ids
+    )
+    mid_burst_infos = get_burst_infos(search_results, work_dir)
+    metadata_paths = list(set([info.metadata_path for info in mid_burst_infos]))
+    mid_burst_infos = [info for info in mid_burst_infos if info.metadata_path in metadata_paths]
+    if not mid_burst_infos:
+        raise ValueError('No valid mid-swath annotation files found.')
+    [info.add_shape_info() for info in mid_burst_infos]
+    [info.add_start_stop_utc() for info in mid_burst_infos]
+    return mid_burst_infos
