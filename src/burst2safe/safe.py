@@ -41,7 +41,7 @@ class Safe:
         self.support_dir = self.get_support_dir()
 
         swaths = list(set([burst.swath for burst in self.burst_infos]))
-        self.include_mid = 'IW2' in swaths and include_mid
+        self.include_mid = 'IW2' not in swaths and include_mid
 
         self.mid_prods = []
         self.mid_burst_infos = []
