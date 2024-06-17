@@ -9,7 +9,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.5]
 
 ### Added
-* Support for s1reader by adding ability to include 0-burst IW2 annotation file.
+* Support for [s1-reader](https://github.com/isce-framework/s1-reader) by adding ability to include 0-burst IW2 annotation file when using `--mid-burst` CLI flag.
 
 ## [0.4.2]
 
