@@ -24,7 +24,7 @@ class Swath:
         self.swath = self.burst_infos[0].swath
         self.polarization = self.burst_infos[0].polarization
 
-        self.name = self.get_name()
+        self.name = self.get_swath_name(self.burst_infos, self.safe_path, self.image_number)
         self.version = version
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
 
@@ -78,20 +78,26 @@ class Swath:
         if burst_ids != list(range(min(burst_ids), max(burst_ids) + 1)):
             raise ValueError(f'All bursts must have consecutive burst IDs. Found: {burst_ids}.')
 
-    def get_name(self) -> str:
+    @staticmethod
+    def get_swath_name(burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int) -> str:
         """Get the name of the swath. Will be used to name constituent output files.
+
+        Args:
+            burst_infos: A list of BurstInfo objects
+            safe_path: The path to the SAFE directory
+            image_number: The image number of the swath
 
         Returns:
             The name of the swath
         """
-        swath = self.swath.lower()
-        pol = self.polarization.lower()
-        start = datetime.strftime(min([x.start_utc for x in self.burst_infos]), '%Y%m%dt%H%M%S')
-        stop = datetime.strftime(max([x.stop_utc for x in self.burst_infos]), '%Y%m%dt%H%M%S')
+        swath = burst_infos[0].swath.lower()
+        pol = burst_infos[0].polarization.lower()
+        start = datetime.strftime(min([x.start_utc for x in burst_infos]), '%Y%m%dt%H%M%S')
+        stop = datetime.strftime(max([x.stop_utc for x in burst_infos]), '%Y%m%dt%H%M%S')
 
-        safe_name = self.safe_path.name
+        safe_name = safe_path.name
         platfrom, _, _, _, _, _, _, orbit, data_take, _ = safe_name.lower().split('_')
-        swath_name = f'{platfrom}-{swath}-slc-{pol}-{start}-{stop}-{orbit}-{data_take}-{self.image_number:03d}'
+        swath_name = f'{platfrom}-{swath}-slc-{pol}-{start}-{stop}-{orbit}-{data_take}-{image_number:03d}'
         return swath_name
 
     def get_bbox(self):

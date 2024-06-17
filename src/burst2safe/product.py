@@ -24,7 +24,7 @@ class GeoPoint:
 class Product(Annotation):
     """Class representing a product XML."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int):
+    def __init__(self, burst_infos: Iterable[BurstInfo], ipf_version: str, image_number: int, dummy: bool = False):
         """Create a Product object.
 
         Args:
@@ -33,6 +33,7 @@ class Product(Annotation):
             image_number: The image number
         """
         super().__init__(burst_infos, 'product', ipf_version, image_number)
+        self.dummy = dummy
         self.qulatity_information = None
         self.general_annotation = None
         self.image_annotation = None
@@ -256,6 +257,18 @@ class Product(Annotation):
         swath_merge_list.set('count', '0')
         self.swath_merging = swath_merging
 
+    def remove_burst_data(self):
+        """Remove data from burstList and geolocationGrid."""
+        burst_list = self.swath_timing.find('burstList')
+        burst_list.set('count', '0')
+        for child in burst_list:
+            burst_list.remove(child)
+
+        geolocation_grid = self.geolocation_grid.find('geolocationGridPointList')
+        geolocation_grid.set('count', '0')
+        for child in geolocation_grid:
+            geolocation_grid.remove(child)
+
     def assemble(self):
         """Assemble the product from its components."""
         self.create_ads_header()
@@ -268,6 +281,9 @@ class Product(Annotation):
         self.create_geolocation_grid()
         self.create_coordinate_conversion()
         self.create_swath_merging()
+
+        if self.dummy:
+            self.remove_burst_data()
 
         product = ET.Element('product')
         product.append(self.ads_header)

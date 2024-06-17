@@ -30,6 +30,7 @@ class BurstInfo:
     burst_index: int
     direction: str
     absolute_orbit: int
+    relative_orbit: int
     date: datetime
     data_url: Path
     data_path: Path
@@ -72,6 +73,7 @@ def create_burst_info(product: S1BurstProduct, work_dir: Path) -> BurstInfo:
     direction = product.properties['flightDirection'].upper()
     polarization = product.properties['polarization'].upper()
     absolute_orbit = int(product.properties['orbit'])
+    relative_orbit = int(product.properties['pathNumber'])
     data_url = product.properties['url']
     metadata_url = product.properties['additionalUrls'][0]
 
@@ -94,6 +96,7 @@ def create_burst_info(product: S1BurstProduct, work_dir: Path) -> BurstInfo:
         burst_index,
         direction,
         absolute_orbit,
+        relative_orbit,
         burst_time,
         data_url,
         data_path,

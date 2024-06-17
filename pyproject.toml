@@ -34,7 +34,7 @@ dependencies = [
   "shapely>=2",
   "numpy",
   "lxml",
-  "tifffile",
+  "tifffile>=2024.0.0",
   "asf_search",
   "dateparser!=1.1.0",
 ]
