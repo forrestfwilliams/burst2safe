@@ -82,6 +82,11 @@ class Swath:
     def get_swath_name(burst_infos: Iterable[BurstInfo], safe_path: Path, image_number: int) -> str:
         """Get the name of the swath. Will be used to name constituent output files.
 
+        Args:
+            burst_infos: A list of BurstInfo objects
+            safe_path: The path to the SAFE directory
+            image_number: The image number of the swath
+
         Returns:
             The name of the swath
         """
