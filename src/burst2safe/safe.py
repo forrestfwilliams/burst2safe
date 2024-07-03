@@ -21,7 +21,7 @@ class Safe:
 
         Args:
             burst_infos: A list of BurstInfo objects
-            all_anns: Include all product annotation files, regardless of included bursts
+            all_anns: Include product annotation files for all swaths, regardless of included bursts
             work_dir: The directory to create the SAFE in
         """
         self.burst_infos = burst_infos
@@ -53,48 +53,6 @@ class Safe:
         support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
 
         return data_dir / f'support_{support_version}'
-
-    def create_representative_burst_set(self, relevant_bursts, swath, pol):
-        start_utc = min([x.start_utc for x in relevant_bursts])
-        stop_utc = max([x.stop_utc for x in relevant_bursts])
-        template = relevant_bursts[0]
-        new_burst = BurstInfo(
-            None,
-            None,
-            swath,
-            pol,
-            None,
-            0,
-            template.direction,
-            template.absolute_orbit,
-            template.relative_orbit,
-            None,
-            None,
-            None,
-            None,
-            template.metadata_path,
-            start_utc,
-            stop_utc,
-        )
-        new_burst.add_shape_info()
-        return [new_burst]
-
-    def create_blank_products(self, image_number: int):
-        swaths = list(set([burst.swath for burst in self.burst_infos]))
-        missing_swaths = list(set(['IW1', 'IW2', 'IW3']) - set(swaths))
-        if not self.all_anns or len(missing_swaths) == 0:
-            return []
-
-        pols = list(set([burst.polarization for burst in self.burst_infos]))
-
-        blank_products = []
-        for swath, pol in product(missing_swaths, pols):
-            image_number += 1
-            relevant_bursts = flatten([self.grouped_burst_infos[s][pol] for s in swaths])
-            rep_bursts = self.create_representative_burst_set(relevant_bursts, swath, pol)
-            annotation = Product(rep_bursts, self.version, image_number, dummy=True)
-            blank_products.append(annotation)
-        return blank_products
 
     @staticmethod
     def check_group_validity(burst_infos: Iterable[BurstInfo]):
@@ -238,6 +196,48 @@ class Safe:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
         shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
+
+    def create_representative_burst_set(self, relevant_bursts, swath, pol):
+        start_utc = min([x.start_utc for x in relevant_bursts])
+        stop_utc = max([x.stop_utc for x in relevant_bursts])
+        template = relevant_bursts[0]
+        new_burst = BurstInfo(
+            None,
+            None,
+            swath,
+            pol,
+            None,
+            0,
+            template.direction,
+            template.absolute_orbit,
+            template.relative_orbit,
+            None,
+            None,
+            None,
+            None,
+            template.metadata_path,
+            start_utc,
+            stop_utc,
+        )
+        new_burst.add_shape_info()
+        return [new_burst]
+
+    def create_blank_products(self, image_number: int):
+        swaths = list(set([burst.swath for burst in self.burst_infos]))
+        missing_swaths = list(set(['IW1', 'IW2', 'IW3']) - set(swaths))
+        if not self.all_anns or len(missing_swaths) == 0:
+            return []
+
+        pols = list(set([burst.polarization for burst in self.burst_infos]))
+
+        blank_products = []
+        for swath, pol in product(missing_swaths, pols):
+            image_number += 1
+            relevant_bursts = flatten([self.grouped_burst_infos[s][pol] for s in swaths])
+            rep_bursts = self.create_representative_burst_set(relevant_bursts, swath, pol)
+            annotation = Product(rep_bursts, self.version, image_number, dummy=True)
+            blank_products.append(annotation)
+        return blank_products
 
     def create_safe_components(self):
         """Create the components (data and metadata files) of the SAFE file."""

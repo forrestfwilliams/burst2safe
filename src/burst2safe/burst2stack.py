@@ -42,7 +42,7 @@ def burst2stack(
         swaths: List of swaths to include
         polarizations: List of polarizations to include
         min_bursts: The minimum number of bursts per swath (default: 1)
-        all_anns: Include all product annotation files, regardless of included bursts
+        all_anns: Include product annotation files for all swaths, regardless of included bursts
         keep_files: Keep the intermediate files
         work_dir: The directory to create the SAFE in (default: current directory)
     """
@@ -81,7 +81,7 @@ def main() -> None:
         '--all-anns',
         action='store_true',
         default=False,
-        help='Include all product annotations files, regardless of included bursts.',
+        help='Include product annotations files for all swaths, regardless of included bursts.',
     )
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
