@@ -24,7 +24,7 @@ def burst2safe(
     polarizations: Optional[Iterable[str]] = None,
     swaths: Optional[Iterable[str]] = None,
     min_bursts: int = 1,
-    include_mid: bool = False,
+    all_anns: bool = False,
     keep_files: bool = False,
     work_dir: Optional[Path] = None,
 ) -> Path:
@@ -43,7 +43,7 @@ def burst2safe(
         polarizations: List of polarizations to include
         swaths: List of swaths to include
         min_bursts: The minimum number of bursts per swath (default: 1)
-        include_mid: Include mid-swath annotation file (for s1-reader compatibility)
+        all_anns: Include product annotation files for all swaths, regardless of included bursts
         keep_files: Keep the intermediate files
         work_dir: The directory to create the SAFE in (default: current directory)
     """
@@ -64,7 +64,7 @@ def burst2safe(
     [info.add_shape_info() for info in burst_infos]
     [info.add_start_stop_utc() for info in burst_infos]
 
-    safe = Safe(burst_infos, include_mid, work_dir)
+    safe = Safe(burst_infos, all_anns, work_dir)
     safe_path = safe.create_safe()
     print('SAFE created!')
 
@@ -90,10 +90,10 @@ def main() -> None:
     )
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument(
-        '--include-mid',
+        '--all-anns',
         action='store_true',
         default=False,
-        help='Include mid-swath annotation file (for s1-reader compatibility).',
+        help='Include product annotations files for all swaths, regardless of included bursts.',
     )
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
@@ -107,7 +107,7 @@ def main() -> None:
         polarizations=args.pols,
         min_bursts=args.min_bursts,
         swaths=args.swaths,
-        include_mid=args.include_mid,
+        all_anns=args.all_anns,
         keep_files=args.keep_files,
         work_dir=args.output_dir,
     )
