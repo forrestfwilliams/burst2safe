@@ -197,7 +197,7 @@ class Safe:
 
         shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
 
-    @staticmethod()
+    @staticmethod
     def create_representative_burst_set(template_bursts: Iterable[BurstInfo], swath: str, pol: str) -> List[BurstInfo]:
         """Create a representative burst set for a blank product.
 

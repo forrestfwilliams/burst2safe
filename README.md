@@ -3,6 +3,17 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 
 **This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
 
+## Processor Compatibility
+The following processors have been tested with SAFE files created by `burst2safe`:
+
+| Processor                                                      | Version  | Compatibility | Required Flags |
+|----------------------------------------------------------------|----------|---------------|----------------|
+| [GAMMA](https://www.gamma-rs.ch)                               | 20240701 | Yes           | Standard       |
+| [ISCE2](https://github.com/isce-framework/isce2)               | 2.6.3    | Yes           | Standard       |
+| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | 0.2.4    | Yes           | --all-anns     |
+| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | 10.0.0   | Untested      | Unknown        |
+| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | 6.2      | Untested      | Unknown        |
+
 ## Setup
 ### Installation
 To use the tool, install it via pip:
