@@ -4,15 +4,17 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 **This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
 
 ## Processor Compatibility
-The following processors have been tested with SAFE files created by `burst2safe`:
+Here is the current compatibility status of `burst2safe` with the major Sentinel-1 SAR processors:
 
-| Processor                                                      | Version  | Compatibility | Required Flags |
-|----------------------------------------------------------------|----------|---------------|----------------|
-| [GAMMA](https://www.gamma-rs.ch)                               | 20240701 | Yes           | Standard       |
-| [ISCE2](https://github.com/isce-framework/isce2)               | 2.6.3    | Yes           | Standard       |
-| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | 0.2.4    | Yes           | --all-anns     |
-| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | 10.0.0   | Untested      | Unknown        |
-| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | 6.2      | Untested      | Unknown        |
+| Processor                                                      | Compatible?  | Version  | Required Flags |
+|----------------------------------------------------------------|--------------|----------|----------------|
+| [GAMMA](https://www.gamma-rs.ch)                               | Yes          | 20240701 | None           |
+| [ISCE2](https://github.com/isce-framework/isce2)               | Yes          | 2.6.3    | None           |
+| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | Yes          | 0.2.4    | `--all-anns`   |
+| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | Untested     | 10.0.0   | Unknown        |
+| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | Untested     | 6.2      | Unknown        |
+
+If you would like to see compatibility for a processor listed as "Untested", or not listed at all, added please [open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new)!
 
 ## Setup
 ### Installation
@@ -51,6 +53,9 @@ You can specify the `--swaths` argument to select the desired swaths to include.
 
 You can also specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
 The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
+
+[!WARNING]
+To create SAFEs compatible with [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader), **you must use the flag `--all-anns`**. `s1-reader` requires metadata information from neighboring swaths to perform some corrections, so the `--all-anns` must be used to include all product annotation datasets, regardless of the bursts selected, in the SAFE file.
 
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
