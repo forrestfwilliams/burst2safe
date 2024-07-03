@@ -55,7 +55,7 @@ You can also specify a minimum number of bursts per polarization/swath combinati
 The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
 
 > [!WARNING]
-> To create SAFEs compatible with [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader), **you must use the flag `--all-anns`**. `s1-reader` requires metadata information from neighboring swaths to perform some corrections, so the `--all-anns` must be used to include all product annotation datasets, regardless of the bursts selected, in the SAFE file.
+> To create SAFEs compatible with [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader), **you must use the `--all-anns`** flag. The `s1-reader` package requires metadata information from neighboring swaths to perform some corrections, so the `--all-anns` flags must be used to include all product annotation datasets, regardless of the bursts selected, in the SAFE file.
 
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
