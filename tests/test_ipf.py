@@ -32,7 +32,7 @@ def test_versions(version, burst, tmp_path):
     [info.add_start_stop_utc() for info in burst_infos]
 
     create_test_geotiff(burst_infos[0].data_path, 'cfloat', shape=(burst_infos[0].length, burst_infos[0].width, 1))
-    safe = Safe(burst_infos, tmp_path)
+    safe = Safe(burst_infos, work_dir=tmp_path)
     safe.create_safe()
 
     # TODO: switch XSD dir to the one in the safe

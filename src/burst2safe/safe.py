@@ -8,21 +8,24 @@ import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
 from burst2safe.manifest import Manifest
+from burst2safe.product import Product
 from burst2safe.swath import Swath
-from burst2safe.utils import BurstInfo, drop_duplicates, get_subxml_from_metadata, optional_wd
+from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, optional_wd
 
 
 class Safe:
     """Class representing a SAFE file."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], work_dir: Optional[Path] = None):
+    def __init__(self, burst_infos: Iterable[BurstInfo], all_anns: bool = False, work_dir: Optional[Path] = None):
         """Initialize a Safe object.
 
         Args:
             burst_infos: A list of BurstInfo objects
+            all_anns: Include product annotation files for all swaths, regardless of included bursts
             work_dir: The directory to create the SAFE in
         """
         self.burst_infos = burst_infos
+        self.all_anns = all_anns
         self.work_dir = optional_wd(work_dir)
 
         self.check_group_validity(self.burst_infos)
@@ -31,13 +34,14 @@ class Safe:
         self.name = self.get_name()
         self.safe_path = self.work_dir / self.name
         self.swaths = []
+        self.blank_products = []
         self.manifest = None
 
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
         self.support_dir = self.get_support_dir()
 
-    def get_support_dir(self):
+    def get_support_dir(self) -> Path:
         """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
         data_dir = Path(__file__).parent / 'data'
         support_dirs = sorted([x for x in data_dir.iterdir() if x.is_dir()])
@@ -51,7 +55,7 @@ class Safe:
         return data_dir / f'support_{support_version}'
 
     @staticmethod
-    def check_group_validity(burst_infos: Iterable[BurstInfo]):
+    def check_group_validity(burst_infos: Iterable[BurstInfo]) -> None:
         """Check that the burst group is valid.
 
         A valid burst group must:
@@ -164,7 +168,7 @@ class Safe:
         version_xml = [elem for elem in manifest.findall('.//{*}software') if elem.get('name') == 'Sentinel-1 IPF'][0]
         return version_xml.get('version')
 
-    def get_bbox(self):
+    def get_bbox(self) -> Polygon:
         """Get the bounding box for the SAFE file.
 
         Returns:
@@ -193,17 +197,88 @@ class Safe:
 
         shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
 
-    def create_safe_components(self):
+    @staticmethod
+    def create_representative_burst_set(template_bursts: Iterable[BurstInfo], swath: str, pol: str) -> List[BurstInfo]:
+        """Create a representative burst set for a blank product.
+
+        Args:
+            template_bursts: A list of BurstInfo objects
+            swath: The swath of the blank product
+            pol: The polarization of the blank product
+        """
+        unique_slcs = list(set([x.slc_granule for x in template_bursts]))
+        representative_bursts = []
+        for slc in unique_slcs:
+            slc_bursts = [x for x in template_bursts if x.slc_granule == slc]
+            start_utc = min([x.start_utc for x in slc_bursts])
+            stop_utc = max([x.stop_utc for x in slc_bursts])
+            slc_template = slc_bursts[0]
+            new_burst = BurstInfo(
+                None,
+                None,
+                swath,
+                pol,
+                None,
+                0,
+                slc_template.direction,
+                slc_template.absolute_orbit,
+                slc_template.relative_orbit,
+                None,
+                None,
+                None,
+                None,
+                slc_template.metadata_path,
+                start_utc,
+                stop_utc,
+            )
+            new_burst.add_shape_info()
+            representative_bursts.append(new_burst)
+        return representative_bursts
+
+    def create_blank_products(self, image_number: int) -> List[Product]:
+        """Create blank product annotation for missing swaths.
+
+        Args:
+            image_number: The starting image number for the annotation products
+
+        Returns:
+            A list of blank Product objects
+        """
+        swaths = list(set([burst.swath for burst in self.burst_infos]))
+        missing_swaths = list(set(['IW1', 'IW2', 'IW3']) - set(swaths))
+        if not self.all_anns or len(missing_swaths) == 0:
+            return []
+
+        pols = list(set([burst.polarization for burst in self.burst_infos]))
+
+        blank_products = []
+        for swath, pol in product(missing_swaths, pols):
+            image_number += 1
+            relevant_bursts = flatten([self.grouped_burst_infos[s][pol] for s in swaths])
+            rep_bursts = self.create_representative_burst_set(relevant_bursts, swath, pol)
+            annotation = Product(rep_bursts, self.version, image_number, dummy=True)
+            blank_products.append(annotation)
+        return blank_products
+
+    def create_safe_components(self) -> None:
         """Create the components (data and metadata files) of the SAFE file."""
         swaths = list(self.grouped_burst_infos.keys())
         polarizations = list(self.grouped_burst_infos[swaths[0]].keys())
-        for i, (swath, polarization) in enumerate(product(swaths, polarizations)):
-            image_number = i + 1
+        image_number = 0
+        for swath, polarization in product(swaths, polarizations):
+            image_number += 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
             swath = Swath(burst_infos, self.safe_path, self.version, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
+
+        for blank_product in self.create_blank_products(image_number):
+            blank_product.assemble()
+            swath_name = Swath.get_swath_name(blank_product.burst_infos, self.safe_path, blank_product.image_number)
+            product_name = self.safe_path / 'annotation' / f'{swath_name}.xml'
+            blank_product.write(product_name)
+            self.blank_products.append(blank_product)
 
     def compile_manifest_components(self) -> Tuple[List, List, List]:
         """Compile the manifest components for all files within the SAFE file.
@@ -223,9 +298,16 @@ class Safe:
             measurement_content, measurement_data = swath.measurement.create_manifest_components()
             content_units.append(measurement_content)
             data_objects.append(measurement_data)
+
+        for blank_product in self.blank_products:
+            content_unit, metadata_object, date_object = blank_product.create_manifest_components()
+            content_units.append(content_unit)
+            metadata_objects.append(metadata_object)
+            data_objects.append(date_object)
+
         return content_units, metadata_objects, data_objects
 
-    def create_manifest(self):
+    def create_manifest(self) -> None:
         """Create the manifest.safe file for the SAFE file."""
         manifest_name = self.safe_path / 'manifest.safe'
         content_units, metadata_objects, data_objects = self.compile_manifest_components()
@@ -235,7 +317,7 @@ class Safe:
         manifest.write(manifest_name)
         self.manifest = manifest
 
-    def update_product_identifier(self):
+    def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
         new_new = self.get_name(unique_id=self.manifest.crc)
         new_path = self.work_dir / new_new
@@ -247,7 +329,7 @@ class Safe:
         for swath in self.swaths:
             swath.update_paths(self.safe_path)
 
-    def create_safe(self):
+    def create_safe(self) -> Path:
         """Create the SAFE file."""
         self.create_dir_structure()
         self.create_safe_components()
@@ -255,7 +337,8 @@ class Safe:
         self.update_product_identifier()
         return self.safe_path
 
-    def cleanup(self):
+    def cleanup(self) -> None:
+        """Remove unneeded files after SAFE creation"""
         to_delete = [burst_info.data_path for burst_info in self.burst_infos]
         to_delete += [burst_info.metadata_path for burst_info in self.burst_infos]
         to_delete = drop_duplicates(to_delete)

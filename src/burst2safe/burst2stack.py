@@ -27,6 +27,7 @@ def burst2stack(
     polarizations: Optional[Iterable[str]] = None,
     swaths: Optional[Iterable[str]] = None,
     min_bursts: int = 1,
+    all_anns: bool = False,
     keep_files: bool = False,
     work_dir: Optional[Path] = None,
 ) -> Path:
@@ -41,6 +42,7 @@ def burst2stack(
         swaths: List of swaths to include
         polarizations: List of polarizations to include
         min_bursts: The minimum number of bursts per swath (default: 1)
+        all_anns: Include product annotation files for all swaths, regardless of included bursts
         keep_files: Keep the intermediate files
         work_dir: The directory to create the SAFE in (default: current directory)
     """
@@ -55,6 +57,7 @@ def burst2stack(
             polarizations=polarizations,
             swaths=swaths,
             min_bursts=min_bursts,
+            all_anns=all_anns,
             keep_files=keep_files,
             work_dir=work_dir,
         )
@@ -74,6 +77,12 @@ def main() -> None:
     parser.add_argument('--pols', type=str, nargs='+', help='Plarizations of the bursts (i.e., VV VH)')
     parser.add_argument('--swaths', type=str, nargs='+', help='Swaths of the bursts (i.e., IW1 IW2 IW3)')
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
+    parser.add_argument(
+        '--all-anns',
+        action='store_true',
+        default=False,
+        help='Include product annotations files for all swaths, regardless of included bursts.',
+    )
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
 
@@ -86,6 +95,7 @@ def main() -> None:
         extent=args.extent,
         polarizations=args.pols,
         min_bursts=args.min_bursts,
+        all_anns=args.all_anns,
         swaths=args.swaths,
         keep_files=args.keep_files,
         work_dir=args.output_dir,

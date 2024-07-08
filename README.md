@@ -3,6 +3,19 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 
 **This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
 
+## Processor Compatibility
+Here is the current compatibility status of `burst2safe` with the major Sentinel-1 SAR processors:
+
+| Processor                                                      | Compatible?  | Version  | Required Flags |
+|----------------------------------------------------------------|--------------|----------|----------------|
+| [GAMMA](https://www.gamma-rs.ch)                               | Yes          | 20240701 | None           |
+| [ISCE2](https://github.com/isce-framework/isce2)               | Yes          | 2.6.3    | None           |
+| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | Yes          | 0.2.4    | `--all-anns`   |
+| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | Untested     | 10.0.0   | Unknown        |
+| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | Untested     | 6.2      | Unknown        |
+
+If you would like to see compatibility for a processor listed as "Untested", or not listed at all, added please [open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new)!
+
 ## Setup
 ### Installation
 To use the tool, install it via pip:
@@ -41,6 +54,9 @@ You can specify the `--swaths` argument to select the desired swaths to include.
 You can also specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
 The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
 
+> [!WARNING]
+> To create SAFEs compatible with [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader), **you must use the `--all-anns`** flag. The `s1-reader` package requires metadata information from neighboring swaths to perform some corrections, so the `--all-anns` flags must be used to include all product annotation datasets, regardless of the bursts selected, in the SAFE file.
+
 For more control over the burst group, you can also provide specific burst granule IDs to be merged into a SAFE file using the following structure:
 ```bash
 burst2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST S1_136232_IW2_20200604T022315_VV_7C85-BURST
@@ -69,7 +85,7 @@ An example command that runs `burst2stack` for the same area as the previous exa
 ```bash
 burst2stack --rel-orbit 64 --start-date 2020-06-03 --end-date 2020-06-17 --extent 53.57 27.54 53.78 27.60
 ```
-The usage of the `--extent`, `--pols`, `--swaths`, and `--min-bursts` arguments is the same as in `burst2safe`.
+The usage of the `--extent`, `--pols`, `--swaths`, `--min-bursts`, and `--all-anns` arguments is the same as in `burst2safe`.
 
 ## Strategy
 `burst2safe` combines and reformats individual bursts into a SAFE file following the procedure described in the [Sentinel-1 Product Specification Document](https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar/document-library/-/asset_publisher/1dO7RF5fJMbd/content/sentinel-1-product-specification-from-ipf-360?_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId=4846613&_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_redirect=https%3A%2F%2Fsentinel.esa.int%2Fweb%2Fsentinel%2Fuser-guides%2Fsentinel-1-sar%2Fdocument-library%3Fp_p_id%3Dcom_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd%26p_p_lifecycle%3D0%26p_p_state%3Dnormal%26p_p_mode%3Dview%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_assetEntryId%3D4846613%26_com_liferay_asset_publisher_web_portlet_AssetPublisherPortlet_INSTANCE_1dO7RF5fJMbd_cur%3D0%26p_r_p_resetCur%3Dfalse)
