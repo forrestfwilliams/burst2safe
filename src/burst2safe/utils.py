@@ -332,6 +332,8 @@ def reparse_args(args: Namespace, tool: str) -> Namespace:
         args.end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
 
     if using_keywords:
+        if args.mode not in ['IW', 'EW']:
+            raise ValueError('--mode must be either IW or EW.')
         if args.pols:
             args.pols = [pol.upper() for pol in args.pols]
         if args.swaths:
