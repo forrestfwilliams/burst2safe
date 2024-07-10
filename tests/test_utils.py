@@ -185,6 +185,7 @@ def test_reparse_args_burst2safe():
     class MockArgs:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
+            self.__dict__['mode'] = None
 
     args1 = MockArgs(granules=['granule1', 'granule2'], orbit=123)
     with pytest.raises(ValueError, match='Cannot provide*'):
