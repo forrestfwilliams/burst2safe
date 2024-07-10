@@ -16,9 +16,9 @@ def bit_for_bit(reference: Path, secondary: Path):
 
 
 @pytest.mark.golden()
-def test_burst2safe():
+def test_burst2safe_iw():
     branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode('utf-8')
-    work_path = Path.cwd() / branch
+    work_path = Path.cwd() / 'iw' / branch
     work_path.mkdir(exist_ok=True)
     with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
         mock_get_time_tag.return_value = '2024:01:01 00:00:00'
@@ -34,11 +34,31 @@ def test_burst2safe():
 
 
 @pytest.mark.golden()
-def test_golden():
+def test_burst2safe_ew():
+    branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode('utf-8')
+    work_path = Path.cwd() / 'ew' / branch
+    work_path.mkdir(exist_ok=True)
+    with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
+        mock_get_time_tag.return_value = '2024:01:01 00:00:00'
+        burst2safe(
+            granules=[],
+            orbit=54631,
+            extent=box(*[-53.6, 66.6, -53.3, 66.8]),
+            polarizations=['HH', 'HV'],
+            mode='EW',
+            keep_files=False,
+            work_dir=work_path,
+        )
+    shutil.make_archive(work_path, 'tar', work_path)
+
+
+@pytest.mark.golden()
+@pytest.mark.parametrize('mode', ['iw', 'ew'])
+def test_golden(mode):
     main_branch = 'main'
     develop_branch = 'develop'
 
-    work_path = Path.cwd()
+    work_path = Path.cwd() / mode
     tars = [work_path / f'{main_branch}.tar', work_path / f'{develop_branch}.tar']
     for tar in tars:
         extract_dir = tar.with_suffix('')
