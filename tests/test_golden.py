@@ -10,16 +10,19 @@ from shapely import box
 from burst2safe.burst2safe import burst2safe
 
 
+CURRENT_BRANCH = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode('utf-8')
+
+
 def bit_for_bit(reference: Path, secondary: Path):
     filecmp.clear_cache()
     return filecmp.cmp(reference, secondary, shallow=False)
 
 
 @pytest.mark.golden()
+@pytest.mark.dependency()
 def test_burst2safe_iw():
-    branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode('utf-8')
-    work_path = Path.cwd() / 'iw' / branch
-    work_path.mkdir(exist_ok=True)
+    work_path = Path.cwd() / CURRENT_BRANCH / 'iw'
+    work_path.mkdir(parents=True, exist_ok=True)
     with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
         mock_get_time_tag.return_value = '2024:01:01 00:00:00'
         burst2safe(
@@ -30,14 +33,13 @@ def test_burst2safe_iw():
             keep_files=False,
             work_dir=work_path,
         )
-    shutil.make_archive(work_path, 'tar', work_path)
 
 
 @pytest.mark.golden()
+@pytest.mark.dependency()
 def test_burst2safe_ew():
-    branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode('utf-8')
-    work_path = Path.cwd() / 'ew' / branch
-    work_path.mkdir(exist_ok=True)
+    work_path = Path.cwd() / CURRENT_BRANCH / 'ew'
+    work_path.mkdir(parents=True, exist_ok=True)
     with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
         mock_get_time_tag.return_value = '2024:01:01 00:00:00'
         burst2safe(
@@ -49,24 +51,30 @@ def test_burst2safe_ew():
             keep_files=False,
             work_dir=work_path,
         )
+
+
+@pytest.mark.golden()
+@pytest.mark.dependency(depends=['test_burst2safe_iw', 'test_burst2safe_ew'])
+def test_make_archive():
+    work_path = Path.cwd() / CURRENT_BRANCH
     shutil.make_archive(work_path, 'tar', work_path)
 
 
 @pytest.mark.golden()
 @pytest.mark.parametrize('mode', ['iw', 'ew'])
-def test_golden(mode):
+def test_golden_compare(mode):
     main_branch = 'main'
     develop_branch = 'develop'
 
-    work_path = Path.cwd() / mode
-    tars = [work_path / f'{main_branch}.tar', work_path / f'{develop_branch}.tar']
-    for tar in tars:
-        extract_dir = tar.with_suffix('')
-        extract_dir.mkdir(exist_ok=True)
-        shutil.unpack_archive(tar, extract_dir)
+    for tar_name in [f'{main_branch}.tar', f'{develop_branch}.tar']:
+        tar_path = Path.cwd() / tar_name
+        extract_dir = tar_path.with_suffix('')
+        if not extract_dir.exists():
+            extract_dir.mkdir(exist_ok=True)
+            shutil.unpack_archive(tar_path, extract_dir)
 
-    main_safe = list((work_path / main_branch).glob('*.SAFE'))[0]
-    develop_safe = list((work_path / develop_branch).glob('*.SAFE'))[0]
+    main_safe = list((Path.cwd() / main_branch / mode).glob('*.SAFE'))[0]
+    develop_safe = list((Path.cwd() / develop_branch / mode).glob('*.SAFE'))[0]
     assert main_safe.name == develop_safe.name
 
     main_files = sorted([x.resolve() for x in main_safe.rglob('*')])
