@@ -1,8 +1,6 @@
 # burst2safe
 Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE format.
 
-**This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
-
 ## Processor Compatibility
 Here is the current compatibility status of `burst2safe` with the major Sentinel-1 SAR processors:
 
