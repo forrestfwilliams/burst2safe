@@ -1,18 +1,16 @@
 # burst2safe
 Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE format.
 
-**This is still a work in progress, and we recommend waiting until the release of version 1.0.0 for use in production environments!**
-
 ## Processor Compatibility
 Here is the current compatibility status of `burst2safe` with the major Sentinel-1 SAR processors:
 
-| Processor                                                      | Compatible?  | Version  | Required Flags |
-|----------------------------------------------------------------|--------------|----------|----------------|
-| [GAMMA](https://www.gamma-rs.ch)                               | Yes          | 20240701 | None           |
-| [ISCE2](https://github.com/isce-framework/isce2)               | Yes          | 2.6.3    | None           |
-| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | Yes          | 0.2.4    | `--all-anns`   |
-| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | Untested     | 10.0.0   | Unknown        |
-| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | Untested     | 6.2      | Unknown        |
+| Processor                                                      | Compatible  | Version Tested  | Required Flags |
+|----------------------------------------------------------------|-------------|-----------------|----------------|
+| [GAMMA](https://www.gamma-rs.ch)                               | Yes         | 20240701        | None           |
+| [ISCE2](https://github.com/isce-framework/isce2)               | Yes         | 2.6.3           | None           |
+| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | Yes         | 0.2.4           | `--all-anns`   |
+| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | Untested    | N/A             | Unknown        |
+| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | Untested    | N/A             | Unknown        |
 
 If you would like to see compatibility for a processor listed as "Untested", or not listed at all, added please [open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new)!
 
