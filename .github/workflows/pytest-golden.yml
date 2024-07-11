@@ -75,11 +75,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: main.tar
-          path: ./main.tar
-
       - uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: environment.yml
