@@ -321,6 +321,9 @@ def reparse_args(args: Namespace, tool: str) -> Namespace:
     used_keyword = [arg_dict.get(x, None) is not None for x in keywords]
     using_keywords = any(used_keyword)
 
+    if arg_dict.get('mode', None) is None:
+        args.mode = 'IW'
+
     if using_granule and using_keywords:
         raise ValueError(f'Cannot provide both granules and any of {", ".join(keywords)} arguments.')
 
@@ -332,6 +335,8 @@ def reparse_args(args: Namespace, tool: str) -> Namespace:
         args.end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
 
     if using_keywords:
+        if args.mode not in ['IW', 'EW']:
+            raise ValueError('--mode must be either IW or EW.')
         if args.pols:
             args.pols = [pol.upper() for pol in args.pols]
         if args.swaths:

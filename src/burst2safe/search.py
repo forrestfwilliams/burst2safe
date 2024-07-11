@@ -14,7 +14,7 @@ from asf_search.Products.S1BurstProduct import S1BurstProduct
 from shapely.geometry import Polygon
 
 from burst2safe.auth import get_earthdata_credentials
-from burst2safe.utils import BurstInfo, download_url_with_retries, get_burst_infos
+from burst2safe.utils import BurstInfo, download_url_with_retries
 
 
 warnings.filterwarnings('ignore')
@@ -135,6 +135,7 @@ def find_group(
     footprint: Polygon,
     polarizations: Optional[Iterable] = None,
     swaths: Optional[Iterable] = None,
+    mode: str = 'IW',
     min_bursts: int = 1,
 ) -> List[S1BurstProduct]:
     """Find burst groups using ASF Search.
@@ -144,6 +145,7 @@ def find_group(
         footprint: The bounding box of the bursts
         polarizations: List of polarizations to include (default: VV)
         swaths: List of swaths to include (default: all)
+        mode: The collection mode to use (IW or EW) (default: IW)
         min_bursts: The minimum number of bursts per swath (default: 1)
 
     Returns:
@@ -155,15 +157,24 @@ def find_group(
     if bad_pols:
         raise ValueError(f'Invalid polarizations: {" ".join(bad_pols)}')
 
+    if mode not in ['IW', 'EW']:
+        raise ValueError('Invalid mode: must be IW or EW')
+    elif mode == 'IW':
+        valid_swaths = ['IW1', 'IW2', 'IW3']
+    elif mode == 'EW':
+        valid_swaths = ['EW1', 'EW2', 'EW3', 'EW4', 'EW5']
+
     if swaths is None:
         swaths = [None]
     else:
-        bad_swaths = set(swaths) - set(['IW1', 'IW2', 'IW3'])
+        bad_swaths = set(swaths) - set(valid_swaths)
         if bad_swaths:
             raise ValueError(f'Invalid swaths: {" ".join(bad_swaths)}')
 
     dataset = asf_search.constants.DATASET.SLC_BURST
-    search_results = asf_search.geo_search(dataset=dataset, absoluteOrbit=orbit, intersectsWith=footprint.wkt)
+    search_results = asf_search.geo_search(
+        dataset=dataset, absoluteOrbit=orbit, intersectsWith=footprint.wkt, beamMode=mode
+    )
     final_results = []
     for pol, swath in product(polarizations, swaths):
         sub_results = find_swath_pol_group(search_results, pol, swath, min_bursts)
@@ -177,6 +188,7 @@ def find_bursts(
     footprint: Optional[Polygon] = None,
     polarizations: Optional[Iterable[str]] = None,
     swaths: Optional[Iterable[str]] = None,
+    mode: str = 'IW',
     min_bursts: int = 1,
 ) -> Path:
     """Find bursts using ASF Search.
@@ -184,8 +196,10 @@ def find_bursts(
     Args:
         granules: A list of burst granules to convert to SAFE
         orbit: The absolute orbit number of the bursts
-        bbox: The bounding box of the bursts
+        footprint: The geographic extent of the bursts
         polarizations: List of polarizations to include
+        swaths: List of swaths to include
+        mode: The collection mode to use (IW or EW) (default: IW)
         min_bursts: The minimum number of bursts per swath (default: 1)
     """
     if granules:
@@ -193,7 +207,7 @@ def find_bursts(
         results = find_granules(granules)
     elif orbit and footprint:
         print('Using burst group search...')
-        results = find_group(orbit, footprint, polarizations, swaths, min_bursts)
+        results = find_group(orbit, footprint, polarizations, swaths, mode, min_bursts)
     else:
         raise ValueError(
             'You must provide either a list of granules or minimum set of group parameters (orbit, and footprint).'
@@ -223,31 +237,3 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     else:
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
             executor.map(download_url_with_retries, urls, dirs, names, [session] * len(urls))
-
-
-def get_midswath_bursts(burst_infos: Iterable[BurstInfo]) -> List[BurstInfo]:
-    """Create BurstInfo objects for the mid-swath bursts.
-
-    Args:
-        burst_infos: A list of BurstInfo objects
-
-    Returns:
-        A list of BurstInfo objects for the mid-swath bursts
-    """
-    work_dir = burst_infos[0].data_path.parent
-    orbits = list(set([info.absolute_orbit for info in burst_infos]))
-    pols = list(set([info.polarization for info in burst_infos]))
-    full_burst_ids = list(set([f'{info.relative_orbit:03}_{info.burst_id:06}_IW2' for info in burst_infos]))
-
-    dataset = asf_search.constants.DATASET.SLC_BURST
-    search_results = asf_search.search(
-        dataset=dataset, absoluteOrbit=orbits, polarization=pols, fullBurstID=full_burst_ids
-    )
-    mid_burst_infos = get_burst_infos(search_results, work_dir)
-    metadata_paths = list(set([info.metadata_path for info in mid_burst_infos]))
-    mid_burst_infos = [info for info in mid_burst_infos if info.metadata_path in metadata_paths]
-    if not mid_burst_infos:
-        raise ValueError('No valid mid-swath annotation files found.')
-    [info.add_shape_info() for info in mid_burst_infos]
-    [info.add_start_stop_utc() for info in mid_burst_infos]
-    return mid_burst_infos

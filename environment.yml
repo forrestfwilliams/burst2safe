@@ -15,3 +15,4 @@ dependencies:
   # For packaging, and testing
   - pytest
   - pytest-cov
+  - pytest-dependency

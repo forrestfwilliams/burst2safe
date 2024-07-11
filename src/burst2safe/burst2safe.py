@@ -23,6 +23,7 @@ def burst2safe(
     extent: Optional[Polygon] = None,
     polarizations: Optional[Iterable[str]] = None,
     swaths: Optional[Iterable[str]] = None,
+    mode: str = 'IW',
     min_bursts: int = 1,
     all_anns: bool = False,
     keep_files: bool = False,
@@ -42,6 +43,7 @@ def burst2safe(
         extent: The bounding box of the bursts
         polarizations: List of polarizations to include
         swaths: List of swaths to include
+        mode: The collection mode to use (IW or EW)
         min_bursts: The minimum number of bursts per swath (default: 1)
         all_anns: Include product annotation files for all swaths, regardless of included bursts
         keep_files: Keep the intermediate files
@@ -49,7 +51,7 @@ def burst2safe(
     """
     work_dir = utils.optional_wd(work_dir)
 
-    products = find_bursts(granules, orbit, extent, polarizations, swaths, min_bursts)
+    products = find_bursts(granules, orbit, extent, polarizations, swaths, mode, min_bursts)
     burst_infos = utils.get_burst_infos(products, work_dir)
     print(f'Found {len(burst_infos)} burst(s).')
 
@@ -88,6 +90,7 @@ def main() -> None:
     parser.add_argument(
         '--swaths', type=str, nargs='+', help='Swaths to include (i.e., IW1 IW2 IW3). Defaults to all swaths.'
     )
+    parser.add_argument('--mode', type=str, default='IW', help='Collection mode to use (IW or EW). Default: IW')
     parser.add_argument('--min-bursts', type=int, default=1, help='Minimum # of bursts per swath/polarization.')
     parser.add_argument(
         '--all-anns',
@@ -105,8 +108,9 @@ def main() -> None:
         orbit=args.orbit,
         extent=args.extent,
         polarizations=args.pols,
-        min_bursts=args.min_bursts,
         swaths=args.swaths,
+        mode=args.mode,
+        min_bursts=args.min_bursts,
         all_anns=args.all_anns,
         keep_files=args.keep_files,
         work_dir=args.output_dir,

@@ -49,7 +49,9 @@ Where:
 
 You can specify the `--pols` argument to select the desired polarizations to include. The options are `VV`, `VH`, `HV`, and `HH`. The default is `VV`.
 
-You can specify the `--swaths` argument to select the desired swaths to include. The options are `IW1`, `IW2`, and `IW3`. The default is to include all swaths.
+You can specify the `--swaths` argument to select the desired swaths to include. The options are `IW1`, `IW2`, and `IW3` for IW mode bursts and `EW1`, `EW2`, `EW3`, `EW4`, and `EW5` for EW mode bursts. The default is to include all swaths.
+
+You can specify the `--mode` argument to select the desired acquisition mode to find bursts for. The options are `IW` for interferometric wide swath mode and `EW` for extra wide swath mode. The default is `IW` mode.
 
 You can also specify a minimum number of bursts per polarization/swath combination using the `--min-bursts` argument.
 The `--min-bursts` argument is useful for workflows that require a minimum number of bursts, such as Enhanced Spectral Diversity (ESD) processing within InSAR processing chains.
@@ -139,9 +141,6 @@ A full accounting of omitted datasets and differing fields can be found below:
 
 ### IPF Version Compatibility
 At this time, we are not aware of any compatibility issues with older Sentinel-1 Instrument Processing Facility (IPF) versions. However, if you do encounter any incompatibilities [please open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new), so we can fix it!
-
-### EW SLC Compatibility
-The tool is currently only compatible with the Sentinel-1 Interferometric Wide (IW) SLC data. If you would like to see support for Extra Wide (EW) SLC data, please open an issue!
 
 ## Developer Setup
 1. Ensure that conda is installed on your system (we recommend using [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) to reduce setup times).
