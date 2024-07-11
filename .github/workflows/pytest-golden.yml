@@ -77,6 +77,9 @@ jobs:
         with:
           path: .
 
+      - name: Display structure of downloaded files
+        run: ls -R
+
       - uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: environment.yml
