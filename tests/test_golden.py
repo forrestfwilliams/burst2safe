@@ -72,7 +72,7 @@ def test_golden_compare(mode):
         if not extract_dir.exists():
             extract_dir.mkdir(exist_ok=True)
             shutil.unpack_archive(tar_path, extract_dir)
-    
+
     main_safe = list((Path.cwd() / main_branch / mode).glob('*.SAFE'))[0]
     develop_safe = list((Path.cwd() / develop_branch / mode).glob('*.SAFE'))[0]
     assert main_safe.name == develop_safe.name
