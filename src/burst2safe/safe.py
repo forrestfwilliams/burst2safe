@@ -7,7 +7,7 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
-from burst2safe.manifest import Manifest
+from burst2safe.manifest import Kml, Manifest
 from burst2safe.product import Product
 from burst2safe.swath import Swath
 from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, optional_wd
@@ -36,6 +36,7 @@ class Safe:
         self.swaths = []
         self.blank_products = []
         self.manifest = None
+        self.kml = None
 
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
@@ -187,11 +188,13 @@ class Safe:
         """
         measurements_dir = self.safe_path / 'measurement'
         annotations_dir = self.safe_path / 'annotation'
+        preview_dir = self.safe_path / 'preview'
         calibration_dir = annotations_dir / 'calibration'
         rfi_dir = annotations_dir / 'rfi'
 
         calibration_dir.mkdir(parents=True, exist_ok=True)
         measurements_dir.mkdir(parents=True, exist_ok=True)
+        preview_dir.mkdir(parents=True, exist_ok=True)
         if self.major_version >= 3 and self.minor_version >= 40:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
@@ -317,6 +320,14 @@ class Safe:
         manifest.write(manifest_name)
         self.manifest = manifest
 
+    def create_preview(self):
+        """Create the support files for the SAFE file."""
+        kml_name = self.safe_path / 'preview' / 'map-overlay.kml'
+        kml = Kml(self.get_bbox())
+        kml.assemble()
+        kml.write(kml_name)
+        self.kml = kml
+
     def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
         new_new = self.get_name(unique_id=self.manifest.crc)
@@ -334,6 +345,7 @@ class Safe:
         self.create_dir_structure()
         self.create_safe_components()
         self.create_manifest()
+        self.create_preview()
         self.update_product_identifier()
         return self.safe_path
 

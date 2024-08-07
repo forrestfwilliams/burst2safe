@@ -9,6 +9,40 @@ from shapely.geometry import Polygon
 from burst2safe.utils import calculate_crc16
 
 
+SAFE_NS = 'http://www.esa.int/safe/sentinel-1.0'
+NAMESPACES = {
+    'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    'gml': 'http://www.opengis.net/gml',
+    'xfdu': 'urn:ccsds:schema:xfdu:1',
+    'safe': SAFE_NS,
+    's1': f'{SAFE_NS}/sentinel-1',
+    's1sar': f'{SAFE_NS}/sentinel-1/sar',
+    's1sarl1': f'{SAFE_NS}/sentinel-1/sar/level-1',
+    's1sarl2': f'{SAFE_NS}/sentinel-1/sar/level-2',
+    'gx': 'http://www.google.com/kml/ext/2.2',
+}
+
+
+def get_footprint_string(bbox: Polygon, x_first=True) -> str:
+    """Get a string representation of the footprint of the product.
+
+    Args:
+        bbox: The bounding box of the product
+        x_first: Whether to put the x coordinate first or second
+
+    Returns:
+        A string representation of the product footprint
+    """
+    coords = [(np.round(y, 6), np.round(x, 6)) for x, y in bbox.exterior.coords]
+    # TODO: order assumes descending
+    coords = [coords[2], coords[3], coords[0], coords[1]]
+    if x_first:
+        coords_str = ' '.join([f'{x},{y}' for x, y in coords])
+    else:
+        coords_str = ' '.join([f'{y},{x}' for x, y in coords])
+    return coords_str
+
+
 class Manifest:
     """Class representing a SAFE manifest."""
 
@@ -34,19 +68,6 @@ class Manifest:
         self.data_objects = data_objects
         self.bbox = bbox
         self.template = template_manifest
-
-        safe_ns = 'http://www.esa.int/safe/sentinel-1.0'
-        self.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'gml': 'http://www.opengis.net/gml',
-            'xfdu': 'urn:ccsds:schema:xfdu:1',
-            'safe': safe_ns,
-            's1': f'{safe_ns}/sentinel-1',
-            's1sar': f'{safe_ns}/sentinel-1/sar',
-            's1sarl1': f'{safe_ns}/sentinel-1/sar/level-1',
-            's1sarl2': f'{safe_ns}/sentinel-1/sar/level-2',
-            'gx': 'http://www.google.com/kml/ext/2.2',
-        }
         self.version = 'esa/safe/sentinel-1.0/sentinel-1/sar/level-1/slc/standard/iwdp'
 
         # Updated by methods
@@ -59,7 +80,7 @@ class Manifest:
 
     def create_information_package_map(self):
         """Create the information package map."""
-        xdfu_ns = self.namespaces['xfdu']
+        xdfu_ns = NAMESPACES['xfdu']
         information_package_map = ET.Element(f'{{{xdfu_ns}}}informationPackageMap')
         parent_content_unit = ET.Element(
             f'{{{xdfu_ns}}}contentUnit',
@@ -91,12 +112,8 @@ class Manifest:
         section = 'metadataSection'
         [metadata_section.append(deepcopy(x)) for x in self.template.find(section) if x.get('ID') in ids_to_keep]
 
-        new_coords = [(np.round(y, 6), np.round(x, 6)) for x, y in self.bbox.exterior.coords]
-        # TODO: only works for descending
-        new_coords = [new_coords[2], new_coords[3], new_coords[0], new_coords[1]]
-        new_coords = ' '.join([f'{x},{y}' for x, y in new_coords])
         coordinates = metadata_section.find('.//{*}coordinates')
-        coordinates.text = new_coords
+        coordinates.text = get_footprint_string(self.bbox)
 
         self.metadata_section = metadata_section
 
@@ -112,7 +129,7 @@ class Manifest:
         self.create_metadata_section()
         self.create_data_object_section()
 
-        manifest = ET.Element('{%s}XFDU' % self.namespaces['xfdu'], nsmap=self.namespaces)
+        manifest = ET.Element('{%s}XFDU' % NAMESPACES['xfdu'], nsmap=NAMESPACES)
         manifest.set('version', self.version)
         manifest.append(self.information_package_map)
         manifest.append(self.metadata_section)
@@ -133,3 +150,53 @@ class Manifest:
         if update_info:
             self.path = out_path
             self.crc = calculate_crc16(self.path)
+
+
+class Kml:
+    """Class representing a SAFE manifest."""
+
+    def __init__(self, bbox: Polygon):
+        """Initialize a KML object.
+
+        Args:
+            bbox: The bounding box of the product
+        """
+        self.bbox = bbox
+        self.xml = None
+
+    def assemble(self):
+        """Assemble the components of the SAFE KML preview file."""
+        kml = ET.Element('kml', nsmap=NAMESPACES)
+        document = ET.SubElement(kml, 'Document')
+        doc_name = ET.SubElement(document, 'name')
+        doc_name.text = 'Sentinel-1 Map Overlay'
+
+        folder = ET.SubElement(document, 'Folder')
+        folder_name = ET.SubElement(folder, 'name')
+        folder_name.text = 'Sentinel-1 Scene Overlay'
+
+        ground_overlay = ET.SubElement(folder, 'GroundOverlay')
+        ground_overlay_name = ET.SubElement(ground_overlay, 'name')
+        ground_overlay_name.text = 'Sentinel-1 Image Overlay'
+        icon = ET.SubElement(ground_overlay, 'Icon')
+        href = ET.SubElement(icon, 'href')
+        # TODO: we intentionally don't create this image because we don't know how to.
+        href.text = 'quick-look.png'
+        lat_lon_quad = ET.SubElement(ground_overlay, f'{{{NAMESPACES["gx"]}}}LatLonQuad')
+        coordinates = ET.SubElement(lat_lon_quad, 'coordinates')
+        coordinates.text = get_footprint_string(self.bbox, x_first=False)
+
+        kml_tree = ET.ElementTree(kml)
+        ET.indent(kml_tree, space='  ')
+        self.xml = kml_tree
+
+    def write(self, out_path: Path, update_info: bool = True) -> None:
+        """Write the SAFE kml to a file.
+
+        Args:
+            out_path: The path to write the manifest to
+            update_info: Whether to update the path
+        """
+        self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+        if update_info:
+            self.path = out_path
