@@ -1,5 +1,6 @@
 import bisect
 import shutil
+from datetime import datetime
 from itertools import product
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -7,7 +8,7 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
-from burst2safe.manifest import Manifest
+from burst2safe.manifest import Kml, Manifest
 from burst2safe.product import Product
 from burst2safe.swath import Swath
 from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, optional_wd
@@ -36,10 +37,30 @@ class Safe:
         self.swaths = []
         self.blank_products = []
         self.manifest = None
+        self.kml = None
 
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
         self.support_dir = self.get_support_dir()
+        self.creation_time = self.get_creation_time()
+
+    def get_creation_time(self) -> datetime:
+        """Get the creation time of the SAFE file.
+        Always set to the latest SLC processing stop time.
+        
+        Returns:
+            The creation time of the SAFE file
+        """
+        metadata_paths = list(set([x.metadata_path for x in self.burst_infos]))
+        manifests = [get_subxml_from_metadata(metadata_path, 'manifest') for metadata_path in metadata_paths]
+        manifest = manifests[0]
+        desired_tag = './/{http://www.esa.int/safe/sentinel-1.0}processing'
+        creation_times = []
+        for manifest in manifests:
+            slc_processing = [elem for elem in manifest.findall(desired_tag) if elem.get('name') == 'SLC Processing'][0]
+            creation_times.append(datetime.strptime(slc_processing.get('stop'), '%Y-%m-%dT%H:%M:%S.%f'))
+        creation_time = max(creation_times)
+        return creation_time
 
     def get_support_dir(self) -> Path:
         """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
@@ -187,11 +208,13 @@ class Safe:
         """
         measurements_dir = self.safe_path / 'measurement'
         annotations_dir = self.safe_path / 'annotation'
+        preview_dir = self.safe_path / 'preview'
         calibration_dir = annotations_dir / 'calibration'
         rfi_dir = annotations_dir / 'rfi'
 
         calibration_dir.mkdir(parents=True, exist_ok=True)
         measurements_dir.mkdir(parents=True, exist_ok=True)
+        preview_dir.mkdir(parents=True, exist_ok=True)
         if self.major_version >= 3 and self.minor_version >= 40:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
@@ -268,7 +291,7 @@ class Safe:
         for swath, polarization in product(swaths, polarizations):
             image_number += 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
-            swath = Swath(burst_infos, self.safe_path, self.version, image_number)
+            swath = Swath(burst_infos, self.safe_path, self.version, self.creation_time, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
@@ -317,6 +340,14 @@ class Safe:
         manifest.write(manifest_name)
         self.manifest = manifest
 
+    def create_preview(self):
+        """Create the support files for the SAFE file."""
+        kml_name = self.safe_path / 'preview' / 'map-overlay.kml'
+        kml = Kml(self.get_bbox())
+        kml.assemble()
+        kml.write(kml_name)
+        self.kml = kml
+
     def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
         new_new = self.get_name(unique_id=self.manifest.crc)
@@ -334,6 +365,7 @@ class Safe:
         self.create_dir_structure()
         self.create_safe_components()
         self.create_manifest()
+        self.create_preview()
         self.update_product_identifier()
         return self.safe_path
 

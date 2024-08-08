@@ -15,17 +15,26 @@ from burst2safe.utils import BurstInfo
 class Measurement:
     """Class representing a measurement GeoTIFF."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], gcps: Iterable[GeoPoint], ipf_version: str, image_number: int):
+    def __init__(
+        self,
+        burst_infos: Iterable[BurstInfo],
+        gcps: Iterable[GeoPoint],
+        creation_time: datetime,
+        ipf_version: str,
+        image_number: int,
+    ):
         """Initialize a Measurement object.
 
         Args:
             burst_infos: A list of BurstInfo objects
             gcps: A list of GeoPoint objects
+            creation_time: The creation time of the measurement
             ipf_version: The IPF version of the measurement data
             image_number: The image number of the measurement
         """
         self.burst_infos = burst_infos
         self.gcps = gcps
+        self.creation_time = creation_time
         self.version = ipf_version
         self.image_number = image_number
 
@@ -81,15 +90,6 @@ class Measurement:
         byte_offsets = [offsets[self.burst_length * i] for i in range(len(self.burst_infos))]
         return byte_offsets
 
-    def get_time_tag(self) -> str:
-        """Get the current time as a time tag.
-        This is a separate method to allow for easy mocking in tests.
-
-        Returns:
-            The time tag as a string
-        """
-        return datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S')
-
     def add_metadata(self, dataset: gdal.Dataset):
         """Add metadata to an existing GDAL dataset.
 
@@ -101,7 +101,7 @@ class Measurement:
         srs.ImportFromEPSG(4326)
         dataset.SetGCPs(gdal_gcps, srs.ExportToWkt())
 
-        dataset.SetMetadataItem('TIFFTAG_DATETIME', self.get_time_tag())
+        dataset.SetMetadataItem('TIFFTAG_DATETIME', datetime.strftime(self.creation_time, '%Y:%m:%d %H:%M:%S'))
         dataset.SetMetadataItem('TIFFTAG_IMAGEDESCRIPTION', f'Sentinel-1{self.s1_platform} IW SLC L1')
         dataset.SetMetadataItem('TIFFTAG_SOFTWARE', f'Sentinel-1 IPF {self.version}')
 
