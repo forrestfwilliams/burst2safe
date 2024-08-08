@@ -1,5 +1,6 @@
 import bisect
 import shutil
+from datetime import datetime
 from itertools import product
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -41,6 +42,25 @@ class Safe:
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
         self.support_dir = self.get_support_dir()
+        self.creation_time = self.get_creation_time()
+
+    def get_creation_time(self) -> datetime:
+        """Get the creation time of the SAFE file.
+        Always set to the latest SLC processing stop time.
+        
+        Returns:
+            The creation time of the SAFE file
+        """
+        metadata_paths = list(set([x.metadata_path for x in self.burst_infos]))
+        manifests = [get_subxml_from_metadata(metadata_path, 'manifest') for metadata_path in metadata_paths]
+        manifest = manifests[0]
+        desired_tag = './/{http://www.esa.int/safe/sentinel-1.0}processing'
+        creation_times = []
+        for manifest in manifests:
+            slc_processing = [elem for elem in manifest.findall(desired_tag) if elem.get('name') == 'SLC Processing'][0]
+            creation_times.append(datetime.strptime(slc_processing.get('stop'), '%Y-%m-%dT%H:%M:%S.%f'))
+        creation_time = max(creation_times)
+        return creation_time
 
     def get_support_dir(self) -> Path:
         """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
@@ -271,7 +291,7 @@ class Safe:
         for swath, polarization in product(swaths, polarizations):
             image_number += 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
-            swath = Swath(burst_infos, self.safe_path, self.version, image_number)
+            swath = Swath(burst_infos, self.safe_path, self.version, self.creation_time, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
