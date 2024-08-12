@@ -113,4 +113,4 @@ class TestSafe:
         assert (safe.safe_path / 'annotation').exists()
         assert (safe.safe_path / 'annotation' / 'calibration').exists()
         assert (safe.safe_path / 'support').exists()
-        assert len(list((safe.safe_path / 'support').glob('*'))) == 6
+        assert len(list((safe.safe_path / 'support').glob('*'))) == 9
