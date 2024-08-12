@@ -8,6 +8,7 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
+from burst2safe.base import create_content_unit, create_data_object, create_metadata_object
 from burst2safe.manifest import Kml, Manifest, Preview
 from burst2safe.product import Product
 from burst2safe.swath import Swath
@@ -72,7 +73,7 @@ class Safe:
         if safe_version in support_versions:
             support_version = safe_version
         else:
-           support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
+            support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
 
         return data_dir / f'support_{support_version}'
 
@@ -306,6 +307,48 @@ class Safe:
             blank_product.write(product_name)
             self.blank_products.append(blank_product)
 
+    def add_preview_components(self, content_units: List, metadata_objects: List, data_objects: List) -> None:
+        """Add the preview components to unit lists.
+
+        Args:
+            content_units: A list of content units
+            metadata_objects: A list of metadata objects
+            data_objects: A list of data objects
+
+        Returns:
+            The updated content_units, metadata_objects, and data_objects lists
+        """
+        overlay_repid = 's1Level1MapOverlaySchema'
+        preview_repid = 's1Level1ProductPreviewSchema'
+        quicklook_repid = 's1Level1QuicklookSchema'
+        overlay_content_unit = create_content_unit('mapoverlay', 'Metadata Unit', overlay_repid)
+        preview_content_unit = create_content_unit('productpreview', 'Metadata Unit', preview_repid)
+        quicklook_content_unit = create_content_unit('quicklook', 'Measurement Data Unit', quicklook_repid)
+        content_units += [overlay_content_unit, preview_content_unit, quicklook_content_unit]
+
+        metadata_objects += [create_metadata_object('mapoverlay'), create_metadata_object('productpreview')]
+
+        # TOOD: add quciklook data object someday
+        overlay_data_object = create_data_object(
+            'mapoverlay',
+            './preview/map-overlay.kml',
+            overlay_repid,
+            'text/xml',
+            self.kml.size_bytes,
+            self.kml.md5,
+        )
+        preview_data_object = create_data_object(
+            'productpreview',
+            './preview/product-preview.html',
+            preview_repid,
+            'text/html',
+            self.preview.size_bytes,
+            self.preview.md5,
+        )
+        data_objects += [overlay_data_object, preview_data_object]
+
+        return content_units, metadata_objects, data_objects
+
     def compile_manifest_components(self) -> Tuple[List, List, List]:
         """Compile the manifest components for all files within the SAFE file.
 
@@ -331,6 +374,9 @@ class Safe:
             metadata_objects.append(metadata_object)
             data_objects.append(date_object)
 
+        content_units, metadata_objects, data_objects = self.add_preview_components(
+            content_units, metadata_objects, data_objects
+        )
         return content_units, metadata_objects, data_objects
 
     def create_manifest(self) -> None:
@@ -379,8 +425,8 @@ class Safe:
         """Create the SAFE file."""
         self.create_dir_structure()
         self.create_safe_components()
-        self.create_manifest()
         self.create_preview()
+        self.create_manifest()
         self.update_product_identifier()
         return self.safe_path
 

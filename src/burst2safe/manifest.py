@@ -109,9 +109,19 @@ class Manifest:
             'generalProductInformation',
             'acquisitionPeriod',
             'measurementFrameSet',
+            's1Level1ProductSchema',
+            's1Level1NoiseSchema',
+            's1Level1CalibrationSchema',
+            's1Level1RfiSchema',
+            's1ObjectTypesSchema',
+            's1Level1MeasurementSchema',
+            's1Level1ProductPreviewSchema',
+            's1Level1QuicklookSchema',
+            's1MapOverlaySchema',
         ]
-        section = 'metadataSection'
-        [metadata_section.append(deepcopy(x)) for x in self.template.find(section) if x.get('ID') in ids_to_keep]
+        for obj in self.template.find('metadataSection'):
+            if obj.get('ID') in ids_to_keep:
+                metadata_section.append(deepcopy(obj))
 
         coordinates = metadata_section.find('.//{*}coordinates')
         coordinates.text = get_footprint_string(self.bbox)
@@ -201,6 +211,10 @@ class Kml:
         self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
         if update_info:
             self.path = out_path
+            with open(out_path, 'rb') as f:
+                file_bytes = f.read()
+                self.size_bytes = len(file_bytes)
+                self.md5 = hashlib.md5(file_bytes).hexdigest()
 
     def update_path(self, safe_path: Path):
         """Update the path based on new a SAFE path.
