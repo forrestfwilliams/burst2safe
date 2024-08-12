@@ -11,7 +11,6 @@ import numpy as np
 from burst2safe.utils import get_burst_infos
 
 
-# Commented-out versions are listed as haveing no Level-1 changes
 VERSIONS = [
     ('2.36', datetime(2014, 10, 1), True),
     ('2.43', datetime(2015, 3, 19), False),
@@ -40,7 +39,7 @@ VERSIONS = [
 ]
 
 
-def find_representative_bursts():
+def find_representative_bursts(important_only=False):
     options = {
         'intersectsWith': 'POLYGON((12.2376 41.741,12.2607 41.741,12.2607 41.7609,12.2376 41.7609,12.2376 41.741))',
         'dataset': 'SLC-BURST',
@@ -58,8 +57,11 @@ def find_representative_bursts():
         bursts_between = [burst for burst in bursts if date1 <= burst.date < date2]
         mid_index = int(np.floor(len(bursts_between) / 2))
         mid_burst = bursts_between[mid_index]
-        mid_bursts.append(mid_burst)
-
+        if important_only:
+            if VERSIONS[i][2]:
+                mid_bursts.append(mid_burst)
+        else:
+            mid_bursts.append(mid_burst)
     return mid_bursts
 
 
@@ -130,6 +132,16 @@ def download_changing_metadata():
         asf.download_url(burst.metadata_url, path='.', filename=burst.metadata_path.name)
 
 
+def download_representative_support():
+    slcs = [f'{burst.slc_granule}-SLC' for burst in find_representative_bursts(important_only=True)]
+    slcs = asf.granule_search(slcs)
+    slcs.download('.')
+    slc_paths = sorted(list(Path('.').glob('*.zip')))
+    for slc_path in slc_paths:
+        extract_support_folder(slc_path)
+
+
 if __name__ == '__main__':
     # identify_changing_versions()
-    download_changing_metadata()
+    # download_changing_metadata()
+    download_representative_support()
