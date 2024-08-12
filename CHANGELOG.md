@@ -9,7 +9,12 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [1.1.0]
 
 ### Added
-* Preview directory and KML preview file to support processors that grab the SAFE footprint from this file.
+* Preview directory with all components except quick-look
+* KML and Preview SAFE components
+* KML, product-preview, and schema components to manifest
+
+### Fixed
+* KML preview file is now included to support processors that grab the SAFE footprint from this file.
 
 ## [1.0.0]
 
