@@ -1,3 +1,4 @@
+import hashlib
 from copy import deepcopy
 from pathlib import Path
 from typing import List
@@ -200,3 +201,136 @@ class Kml:
         self.xml.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
         if update_info:
             self.path = out_path
+
+
+class Preview:
+    """Class representing a product preview HTML file."""
+
+    def __init__(
+        self,
+        name: str,
+        product: List[str],
+        calibration: List[str],
+        measurement: List[str],
+        rfi: List[str] = [],
+    ):
+        """Initialize a Preview object.
+
+        Args:
+            name: The name of the product
+            product: A list of product annotation files
+            calibration: A list of calibration annotation files
+            measurement: A list of measurement annotation files
+            rfi: A list of rfi annotation files
+        """
+        self.name = '_'.join(name.split('_')[:-1])
+        self.product = product
+        self.calibration = calibration
+        self.measurement = measurement
+        self.rfi = rfi
+        self.preview = ['map-overlay.kml', 'product-preview.html', 'quick-look.png']
+        self.preview_icon = ['logo.png']
+        self.support = [
+            's1-level-1-product.xsd',
+            's1-level-1-noise.xsd',
+            's1-level-1-calibration.xsd',
+            's1-object-types.xsd',
+            's1-map-overlay.xsd',
+            's1-product-preview.xsd',
+            's1-level-1-measurement.xsd',
+            's1-level-1-quicklook.xsd',
+        ]
+        if len(self.rfi) > 0:
+            self.support.append('s1-level-1-rfi.xsd')
+        self.html = None
+
+    def create_base(self):
+        """Create the base HTML product preview."""
+        namespaces = {'xsd': 'http://www.w3.org/2001/XMLSchema', 'fn': 'http://www.w3.org/2005/xpath-functions'}
+        html = ET.Element('html', nsmap=namespaces)
+        head = ET.SubElement(html, 'head')
+        ET.SubElement(head, 'meta', attrib={'http-equiv': 'Content-Type', 'content': 'text/html; charset=utf-8'})
+
+        # Create the head section
+        nsmap = {'xsd': 'http://www.w3.org/2001/XMLSchema', 'fn': 'http://www.w3.org/2005/xpath-functions'}
+        html = ET.Element('html', nsmap=nsmap)
+        head = ET.SubElement(html, 'head')
+
+        # Meta element
+        ET.SubElement(head, 'meta', attrib={'http-equiv': 'Content-Type', 'content': 'text/html; charset=UTF-8'})
+
+        # Title element
+        title = ET.SubElement(head, 'title')
+        title.text = self.name
+
+        # Style element
+        style = ET.SubElement(head, 'style', attrib={'type': 'text/css'})
+        style.text = """
+        h1 {font-size:20px}
+        h2 {font-size: 18px}
+        """
+
+        # Create the body section
+        body = ET.SubElement(html, 'body')
+
+        # Add image and title
+        ET.SubElement(body, 'img', attrib={'src': 'icons/logo.png'})
+        h1 = ET.SubElement(body, 'h1')
+        h1.text = self.name
+
+        # Add manifest link
+        h2_manifest = ET.SubElement(body, 'h2')
+        a_manifest = ET.SubElement(h2_manifest, 'a', attrib={'href': '../manifest.safe'})
+        a_manifest.text = 'manifest.safe'
+
+        return html
+
+    def add_subsection(self, body, name, files):
+        """Add a file set subsection to the HTML preview."""
+
+        h2 = ET.SubElement(body, 'h2')
+        h2.text = name
+        ul = ET.SubElement(body, 'ul')
+        for file in files:
+            li = ET.SubElement(ul, 'li')
+            a = ET.SubElement(li, 'a', attrib={'href': f'../{name}/{file}'})
+            a.text = file
+
+    def add_img(self, body):
+        """Add the image to the HTML preview."""
+        ET.SubElement(body, 'img', attrib={'style': 'float:right', 'src': '../preview/quick-look.png'})
+
+    def assemble(self):
+        """Assemble the HTML preview."""
+        html = self.create_base()
+        body = html.find('.//body')
+
+        self.add_subsection(body, 'annotation', self.product)
+        self.add_subsection(body, 'annotation/calibration', self.calibration)
+        if len(self.rfi) > 0:
+            self.add_subsection(body, 'annotation/rfi', self.rfi)
+        self.add_subsection(body, 'measurement', self.measurement)
+        self.add_img(body)
+        self.add_subsection(body, 'preview', self.preview)
+        self.add_subsection(body, 'preview/icons', self.preview_icon)
+        self.add_subsection(body, 'support', self.support)
+
+        html_tree = ET.ElementTree(html)
+        ET.indent(html_tree, space='  ')
+        self.html = html_tree
+
+    def write(self, out_path: Path, update_info=True) -> None:
+        """Write the html to a file.
+
+        Args:
+            out_path: The path to write the annotation to.
+            update_info: Whether to update the size and md5 attributes of the html.
+        """
+        self.html.write(out_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+        if update_info:
+            self.path = out_path
+            with open(out_path, 'rb') as f:
+                file_bytes = f.read()
+                self.size_bytes = len(file_bytes)
+                self.md5 = hashlib.md5(file_bytes).hexdigest()

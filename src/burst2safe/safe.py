@@ -8,7 +8,7 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
-from burst2safe.manifest import Kml, Manifest
+from burst2safe.manifest import Kml, Manifest, Preview
 from burst2safe.product import Product
 from burst2safe.swath import Swath
 from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, optional_wd
@@ -47,7 +47,7 @@ class Safe:
     def get_creation_time(self) -> datetime:
         """Get the creation time of the SAFE file.
         Always set to the latest SLC processing stop time.
-        
+
         Returns:
             The creation time of the SAFE file
         """
@@ -209,16 +209,18 @@ class Safe:
         measurements_dir = self.safe_path / 'measurement'
         annotations_dir = self.safe_path / 'annotation'
         preview_dir = self.safe_path / 'preview'
+        icon_dir = preview_dir / 'icons'
         calibration_dir = annotations_dir / 'calibration'
         rfi_dir = annotations_dir / 'rfi'
 
         calibration_dir.mkdir(parents=True, exist_ok=True)
         measurements_dir.mkdir(parents=True, exist_ok=True)
-        preview_dir.mkdir(parents=True, exist_ok=True)
+        icon_dir.mkdir(parents=True, exist_ok=True)
         if self.major_version >= 3 and self.minor_version >= 40:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
         shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
+        shutil.copy(self.support_dir.parent / 'logo.png', icon_dir / 'logo.png')
 
     @staticmethod
     def create_representative_burst_set(template_bursts: Iterable[BurstInfo], swath: str, pol: str) -> List[BurstInfo]:
@@ -342,11 +344,18 @@ class Safe:
 
     def create_preview(self):
         """Create the support files for the SAFE file."""
-        kml_name = self.safe_path / 'preview' / 'map-overlay.kml'
         kml = Kml(self.get_bbox())
         kml.assemble()
-        kml.write(kml_name)
+        kml.write(self.safe_path / 'preview' / 'map-overlay.kml')
         self.kml = kml
+
+        product_names = [s.product_name.name for s in self.swaths]
+        calibration_names = [s.noise_name.name for s in self.swaths] + [s.calibration_name.name for s in self.swaths]
+        measurement_names = [s.measurement_name.name for s in self.swaths]
+        rfi_names = [s.rfi_name.name for s in self.swaths if s.has_rfi]
+        preview = Preview(self.name, product_names, calibration_names, measurement_names, rfi_names)
+        preview.assemble()
+        preview.write(self.safe_path / 'preview' / 'product-preview.html')
 
     def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
