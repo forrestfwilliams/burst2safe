@@ -202,6 +202,16 @@ class Kml:
         if update_info:
             self.path = out_path
 
+    def update_path(self, safe_path: Path):
+        """Update the path based on new a SAFE path.
+
+        Args:
+            safe_path: The new SAFE path
+        """
+        parts = self.path.parts
+        parent_index = parts.index(safe_path.parent.name)
+        self.path = safe_path / Path(*parts[parent_index + 2 :])
+
 
 class Preview:
     """Class representing a product preview HTML file."""
@@ -243,6 +253,7 @@ class Preview:
         if len(self.rfi) > 0:
             self.support.append('s1-level-1-rfi.xsd')
         self.html = None
+        self.path = None
 
     def create_base(self):
         """Create the base HTML product preview."""
@@ -334,3 +345,13 @@ class Preview:
                 file_bytes = f.read()
                 self.size_bytes = len(file_bytes)
                 self.md5 = hashlib.md5(file_bytes).hexdigest()
+
+    def update_path(self, safe_path: Path):
+        """Update the path based on new a SAFE path.
+
+        Args:
+            safe_path: The new SAFE path
+        """
+        parts = self.path.parts
+        parent_index = parts.index(safe_path.parent.name)
+        self.path = safe_path / Path(*parts[parent_index + 2 :])

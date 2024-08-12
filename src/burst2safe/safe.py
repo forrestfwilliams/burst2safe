@@ -71,7 +71,8 @@ class Safe:
 
         if safe_version in support_versions:
             support_version = safe_version
-        support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
+        else:
+           support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
 
         return data_dir / f'support_{support_version}'
 
@@ -356,6 +357,7 @@ class Safe:
         preview = Preview(self.name, product_names, calibration_names, measurement_names, rfi_names)
         preview.assemble()
         preview.write(self.safe_path / 'preview' / 'product-preview.html')
+        self.preview = preview
 
     def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
@@ -364,8 +366,12 @@ class Safe:
         if new_path.exists():
             shutil.rmtree(new_path)
         shutil.move(self.safe_path, new_path)
+
         self.name = new_new
         self.safe_path = new_path
+
+        self.kml.update_path(self.safe_path)
+        self.preview.update_path(self.safe_path)
         for swath in self.swaths:
             swath.update_paths(self.safe_path)
 
