@@ -1,4 +1,5 @@
 from collections import namedtuple
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -8,10 +9,13 @@ from burst2safe.product import GeoPoint
 from burst2safe.swath import Swath
 
 
+CREATION_TIME = datetime.now()
+
+
 class TestSwath:
     def test_init(self, burst_infos):
         safe_path = Path('./S1A_IW_SLC__1SDV_20240408T015045_20240408T015113_053336_06778C_CB5D.SAFE')
-        swath = Swath(burst_infos[::-1], safe_path, '003.71', 1)
+        swath = Swath(burst_infos[::-1], safe_path, '003.71', CREATION_TIME, 1)
         assert swath.burst_infos == burst_infos
 
         name = 's1a-iw2-slc-vv-20240408t015108-20240408t015114-053336-06778c-001'
@@ -70,7 +74,7 @@ class TestSwath:
         ]
         ProductStub = namedtuple('ProductStub', ['gcps'])
         safe_path = Path('./S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85.SAFE')
-        swath = Swath(burst_infos, safe_path, '003.71', 1)
+        swath = Swath(burst_infos, safe_path, '003.71', CREATION_TIME, 1)
         swath.product = ProductStub(geo_points)
         bbox = swath.get_bbox()
         polygon = Polygon([(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)])

@@ -2,7 +2,6 @@ import filecmp
 import shutil
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from shapely import box
@@ -23,16 +22,14 @@ def bit_for_bit(reference: Path, secondary: Path):
 def test_burst2safe_iw():
     work_path = Path.cwd() / CURRENT_BRANCH / 'iw'
     work_path.mkdir(parents=True, exist_ok=True)
-    with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
-        mock_get_time_tag.return_value = '2024:01:01 00:00:00'
-        burst2safe(
-            granules=[],
-            orbit=51936,
-            extent=box(*[-117.3, 35.5, -117.2, 35.6]),
-            polarizations=['VV', 'VH'],
-            keep_files=False,
-            work_dir=work_path,
-        )
+    burst2safe(
+        granules=[],
+        orbit=51936,
+        extent=box(*[-117.3, 35.5, -117.2, 35.6]),
+        polarizations=['VV', 'VH'],
+        keep_files=False,
+        work_dir=work_path,
+    )
 
 
 @pytest.mark.golden()
@@ -40,17 +37,15 @@ def test_burst2safe_iw():
 def test_burst2safe_ew():
     work_path = Path.cwd() / CURRENT_BRANCH / 'ew'
     work_path.mkdir(parents=True, exist_ok=True)
-    with patch('burst2safe.measurement.Measurement.get_time_tag') as mock_get_time_tag:
-        mock_get_time_tag.return_value = '2024:01:01 00:00:00'
-        burst2safe(
-            granules=[],
-            orbit=54631,
-            extent=box(*[-53.6, 66.6, -53.3, 66.8]),
-            polarizations=['HH', 'HV'],
-            mode='EW',
-            keep_files=False,
-            work_dir=work_path,
-        )
+    burst2safe(
+        granules=[],
+        orbit=54631,
+        extent=box(*[-53.6, 66.6, -53.3, 66.8]),
+        polarizations=['HH', 'HV'],
+        mode='EW',
+        keep_files=False,
+        work_dir=work_path,
+    )
 
 
 @pytest.mark.golden()

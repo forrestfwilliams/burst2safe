@@ -15,17 +15,33 @@ from burst2safe.utils import BurstInfo
 class Swath:
     """Class representing a single swath (and polarization) of a SAFE file."""
 
-    def __init__(self, burst_infos: Iterable[BurstInfo], safe_path: Path, version: str, image_number: int):
-        """Initialize a Swath object."""
+    def __init__(
+        self,
+        burst_infos: Iterable[BurstInfo],
+        safe_path: Path,
+        version: str,
+        creation_time: datetime,
+        image_number: int,
+    ):
+        """Initialize a Swath object.
+
+        Args:
+            burst_infos: A list of BurstInfo objects
+            safe_path: The path to the SAFE directory
+            version: The IPF version of the SAFE file
+            creation_time: The creation time of the SAFE file
+            image_number: The image number of the swath
+        """
         self.check_burst_group_validity(burst_infos)
         self.burst_infos = sorted(burst_infos, key=lambda x: x.burst_id)
         self.safe_path = safe_path
+        self.version = version
+        self.creation_time = creation_time
         self.image_number = image_number
         self.swath = self.burst_infos[0].swath
         self.polarization = self.burst_infos[0].polarization
 
         self.name = self.get_swath_name(self.burst_infos, self.safe_path, self.image_number)
-        self.version = version
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
 
         self.measurement_name = self.safe_path / 'measurement' / f'{self.name}.tiff'
@@ -125,7 +141,9 @@ class Swath:
         for component in self.annotations:
             component.assemble()
 
-        self.measurement = Measurement(self.burst_infos, self.product.gcps, self.version, self.image_number)
+        self.measurement = Measurement(
+            self.burst_infos, self.product.gcps, self.creation_time, self.version, self.image_number
+        )
 
     def write(self, update_info: bool = True):
         """Write the Swath componets to the SAFE directory.

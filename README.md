@@ -4,13 +4,14 @@ Utility for converting ASF-derived Sentinel-1 burst SLC products to the ESA SAFE
 ## Processor Compatibility
 Here is the current compatibility status of `burst2safe` with the major Sentinel-1 SAR processors:
 
-| Processor                                                      | Compatible  | Version Tested  | Required Flags |
-|----------------------------------------------------------------|-------------|-----------------|----------------|
-| [GAMMA](https://www.gamma-rs.ch)                               | Yes         | 20240701        | None           |
-| [ISCE2](https://github.com/isce-framework/isce2)               | Yes         | 2.6.3           | None           |
-| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader) | Yes         | 0.2.4           | `--all-anns`   |
-| [SNAP](https://step.esa.int/main/toolboxes/snap/)              | Untested    | N/A             | Unknown        |
-| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)            | Untested    | N/A             | Unknown        |
+| Processor                                                              | Compatible | Version Tested | Required Flags |
+|------------------------------------------------------------------------|------------|----------------|----------------|
+| [GAMMA](https://www.gamma-rs.ch)                                       | Yes        | 20240701       | None           |
+| [ISCE2 (including TopsStack)](https://github.com/isce-framework/isce2) | Yes        | 2.6.3          | None           |
+| [ISCE2](https://github.com/isce-framework/isce2)                       | Yes        | 2.6.3          | None           |
+| [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader)         | Yes        | 0.2.4          | `--all-anns`   |
+| [SNAP](https://step.esa.int/main/toolboxes/snap/)                      | Untested   | N/A            | Unknown        |
+| [GMTSAR](https://step.esa.int/main/toolboxes/snap/)                    | Untested   | N/A            | Unknown        |
 
 If you would like to see compatibility for a processor listed as "Untested", or not listed at all, added please [open an issue](https://github.com/forrestfwilliams/burst2safe/issues/new)!
 
@@ -129,11 +130,9 @@ A full accounting of omitted datasets and differing fields can be found below:
     * Invalid data as denoted by `swathTiming/burstList/burst/firstValidSample` and `lastValidSample` are set to zero. This done by the ASF extractor, not this tool.
     * TIFF tags **that are not GeoTIFF tags** are omitted. See Product Specification Table 3-8 for full list.
 * Preview
-    * All preview datasets and the preview directory are omitted.
-* Support
-    * s1-product-preview.xsd, s1-map-overlay.xsd, s1-quicklook.xsd and are omitted.
+    * The quick-look.png file is omitted.
 * Manifest
-    * `metadataObjects` associated with support datasets are omitted.
+    * Some elements may not be in the same order as standard S1 SAFE files.
 * SAFE report
     * The SAFE report PDF is omitted.
 
