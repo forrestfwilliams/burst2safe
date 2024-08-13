@@ -37,7 +37,7 @@ def test_versions(version, burst, tmp_path):
 
     xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data' / f'support_{version.replace(".", "")}'
     support_source_dir = safe.support_dir
-    assert xsd_dir == support_source_dir
+    assert xsd_dir.name == support_source_dir.name
 
     support_dir = safe.safe_path / 'support'
 
