@@ -1,5 +1,6 @@
 import bisect
 import shutil
+from datetime import datetime
 from itertools import product
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -7,7 +8,8 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
 
-from burst2safe.manifest import Manifest
+from burst2safe.base import create_content_unit, create_data_object, create_metadata_object
+from burst2safe.manifest import Kml, Manifest, Preview
 from burst2safe.product import Product
 from burst2safe.swath import Swath
 from burst2safe.utils import BurstInfo, drop_duplicates, flatten, get_subxml_from_metadata, optional_wd
@@ -36,10 +38,30 @@ class Safe:
         self.swaths = []
         self.blank_products = []
         self.manifest = None
+        self.kml = None
 
         self.version = self.get_ipf_version(self.burst_infos[0].metadata_path)
         self.major_version, self.minor_version = [int(x) for x in self.version.split('.')]
         self.support_dir = self.get_support_dir()
+        self.creation_time = self.get_creation_time()
+
+    def get_creation_time(self) -> datetime:
+        """Get the creation time of the SAFE file.
+        Always set to the latest SLC processing stop time.
+
+        Returns:
+            The creation time of the SAFE file
+        """
+        metadata_paths = list(set([x.metadata_path for x in self.burst_infos]))
+        manifests = [get_subxml_from_metadata(metadata_path, 'manifest') for metadata_path in metadata_paths]
+        manifest = manifests[0]
+        desired_tag = './/{http://www.esa.int/safe/sentinel-1.0}processing'
+        creation_times = []
+        for manifest in manifests:
+            slc_processing = [elem for elem in manifest.findall(desired_tag) if elem.get('name') == 'SLC Processing'][0]
+            creation_times.append(datetime.strptime(slc_processing.get('stop'), '%Y-%m-%dT%H:%M:%S.%f'))
+        creation_time = max(creation_times)
+        return creation_time
 
     def get_support_dir(self) -> Path:
         """Find the support directory version closest to but not exceeding the IPF major.minor verion"""
@@ -50,7 +72,8 @@ class Safe:
 
         if safe_version in support_versions:
             support_version = safe_version
-        support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
+        else:
+            support_version = support_versions[bisect.bisect_left(support_versions, safe_version) - 1]
 
         return data_dir / f'support_{support_version}'
 
@@ -187,15 +210,19 @@ class Safe:
         """
         measurements_dir = self.safe_path / 'measurement'
         annotations_dir = self.safe_path / 'annotation'
+        preview_dir = self.safe_path / 'preview'
+        icon_dir = preview_dir / 'icons'
         calibration_dir = annotations_dir / 'calibration'
         rfi_dir = annotations_dir / 'rfi'
 
         calibration_dir.mkdir(parents=True, exist_ok=True)
         measurements_dir.mkdir(parents=True, exist_ok=True)
+        icon_dir.mkdir(parents=True, exist_ok=True)
         if self.major_version >= 3 and self.minor_version >= 40:
             rfi_dir.mkdir(parents=True, exist_ok=True)
 
         shutil.copytree(self.support_dir, self.safe_path / 'support', dirs_exist_ok=True)
+        shutil.copy(self.support_dir.parent / 'logo.png', icon_dir / 'logo.png')
 
     @staticmethod
     def create_representative_burst_set(template_bursts: Iterable[BurstInfo], swath: str, pol: str) -> List[BurstInfo]:
@@ -268,7 +295,7 @@ class Safe:
         for swath, polarization in product(swaths, polarizations):
             image_number += 1
             burst_infos = self.grouped_burst_infos[swath][polarization]
-            swath = Swath(burst_infos, self.safe_path, self.version, image_number)
+            swath = Swath(burst_infos, self.safe_path, self.version, self.creation_time, image_number)
             swath.assemble()
             swath.write()
             self.swaths.append(swath)
@@ -279,6 +306,48 @@ class Safe:
             product_name = self.safe_path / 'annotation' / f'{swath_name}.xml'
             blank_product.write(product_name)
             self.blank_products.append(blank_product)
+
+    def add_preview_components(self, content_units: List, metadata_objects: List, data_objects: List) -> List:
+        """Add the preview components to unit lists.
+
+        Args:
+            content_units: A list of content units
+            metadata_objects: A list of metadata objects
+            data_objects: A list of data objects
+
+        Returns:
+            The updated content_units, metadata_objects, and data_objects lists
+        """
+        overlay_repid = 's1Level1MapOverlaySchema'
+        preview_repid = 's1Level1ProductPreviewSchema'
+        quicklook_repid = 's1Level1QuicklookSchema'
+        overlay_content_unit = create_content_unit('mapoverlay', 'Metadata Unit', overlay_repid)
+        preview_content_unit = create_content_unit('productpreview', 'Metadata Unit', preview_repid)
+        quicklook_content_unit = create_content_unit('quicklook', 'Measurement Data Unit', quicklook_repid)
+        content_units += [overlay_content_unit, preview_content_unit, quicklook_content_unit]
+
+        metadata_objects += [create_metadata_object('mapoverlay'), create_metadata_object('productpreview')]
+
+        # TOOD: add quciklook data object someday
+        overlay_data_object = create_data_object(
+            'mapoverlay',
+            './preview/map-overlay.kml',
+            overlay_repid,
+            'text/xml',
+            self.kml.size_bytes,
+            self.kml.md5,
+        )
+        preview_data_object = create_data_object(
+            'productpreview',
+            './preview/product-preview.html',
+            preview_repid,
+            'text/html',
+            self.preview.size_bytes,
+            self.preview.md5,
+        )
+        data_objects += [overlay_data_object, preview_data_object]
+
+        return content_units, metadata_objects, data_objects
 
     def compile_manifest_components(self) -> Tuple[List, List, List]:
         """Compile the manifest components for all files within the SAFE file.
@@ -305,6 +374,9 @@ class Safe:
             metadata_objects.append(metadata_object)
             data_objects.append(date_object)
 
+        content_units, metadata_objects, data_objects = self.add_preview_components(
+            content_units, metadata_objects, data_objects
+        )
         return content_units, metadata_objects, data_objects
 
     def create_manifest(self) -> None:
@@ -317,6 +389,22 @@ class Safe:
         manifest.write(manifest_name)
         self.manifest = manifest
 
+    def create_preview(self):
+        """Create the support files for the SAFE file."""
+        kml = Kml(self.get_bbox())
+        kml.assemble()
+        kml.write(self.safe_path / 'preview' / 'map-overlay.kml')
+        self.kml = kml
+
+        product_names = [s.product_name.name for s in self.swaths]
+        calibration_names = [s.noise_name.name for s in self.swaths] + [s.calibration_name.name for s in self.swaths]
+        measurement_names = [s.measurement_name.name for s in self.swaths]
+        rfi_names = [s.rfi_name.name for s in self.swaths if s.has_rfi]
+        preview = Preview(self.name, product_names, calibration_names, measurement_names, rfi_names)
+        preview.assemble()
+        preview.write(self.safe_path / 'preview' / 'product-preview.html')
+        self.preview = preview
+
     def update_product_identifier(self) -> None:
         """Update the product identifier using the CRC of the manifest file."""
         new_new = self.get_name(unique_id=self.manifest.crc)
@@ -324,8 +412,12 @@ class Safe:
         if new_path.exists():
             shutil.rmtree(new_path)
         shutil.move(self.safe_path, new_path)
+
         self.name = new_new
         self.safe_path = new_path
+
+        self.kml.update_path(self.safe_path)
+        self.preview.update_path(self.safe_path)
         for swath in self.swaths:
             swath.update_paths(self.safe_path)
 
@@ -333,6 +425,7 @@ class Safe:
         """Create the SAFE file."""
         self.create_dir_structure()
         self.create_safe_components()
+        self.create_preview()
         self.create_manifest()
         self.update_product_identifier()
         return self.safe_path

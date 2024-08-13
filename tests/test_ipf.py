@@ -35,11 +35,17 @@ def test_versions(version, burst, tmp_path):
     safe = Safe(burst_infos, work_dir=tmp_path)
     safe.create_safe()
 
-    # TODO: switch XSD dir to the one in the safe
     xsd_dir = Path(__file__).parent.parent / 'src' / 'burst2safe' / 'data' / f'support_{version.replace(".", "")}'
+    support_source_dir = safe.support_dir
+    assert xsd_dir == support_source_dir
+
+    support_dir = safe.safe_path / 'support'
+
+    validate_xml(safe.kml.path, support_dir / 's1-map-overlay.xsd')
+    validate_xml(safe.preview.path, support_dir / 's1-product-preview.xsd')
     for swath in safe.swaths:
-        validate_xml(swath.product.path, xsd_dir / 's1-level-1-product.xsd')
-        validate_xml(swath.noise.path, xsd_dir / 's1-level-1-noise.xsd')
-        validate_xml(swath.calibration.path, xsd_dir / 's1-level-1-calibration.xsd')
+        validate_xml(swath.product.path, support_dir / 's1-level-1-product.xsd')
+        validate_xml(swath.noise.path, support_dir / 's1-level-1-noise.xsd')
+        validate_xml(swath.calibration.path, support_dir / 's1-level-1-calibration.xsd')
         if swath.has_rfi:
-            validate_xml(swath.rfi.path, xsd_dir / 's1-level-1-rfi.xsd')
+            validate_xml(swath.rfi.path, support_dir / 's1-level-1-rfi.xsd')
