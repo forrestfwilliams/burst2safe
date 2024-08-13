@@ -1,9 +1,9 @@
 from copy import deepcopy
+from datetime import datetime
 
 import numpy as np
 import pytest
 from osgeo import gdal
-from datetime import datetime
 
 from burst2safe.measurement import Measurement
 from burst2safe.product import GeoPoint
@@ -13,6 +13,7 @@ from helpers import create_test_geotiff
 gdal.UseExceptions()
 
 CREATION_TIME = datetime.now()
+
 
 @pytest.fixture
 def burst_datas(burst_infos, tmp_path):
