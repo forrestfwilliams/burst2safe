@@ -13,6 +13,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * KML and Preview SAFE components
 * KML, product-preview, and schema components to manifest
 
+### Changed
+* Creation time of measurement tiffs is now set to the end of SLC processing. This ensures consistent filenames of repeatedly created SAFEs because the name is dependent on measurement tiff checksums.
+
 ### Fixed
 * KML preview file is now included to support processors that grab the SAFE footprint from this file.
 

@@ -307,7 +307,7 @@ class Safe:
             blank_product.write(product_name)
             self.blank_products.append(blank_product)
 
-    def add_preview_components(self, content_units: List, metadata_objects: List, data_objects: List) -> None:
+    def add_preview_components(self, content_units: List, metadata_objects: List, data_objects: List) -> List:
         """Add the preview components to unit lists.
 
         Args:
