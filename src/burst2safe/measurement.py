@@ -57,7 +57,7 @@ class Measurement:
         self.byte_offsets = []
 
     def get_data(self, band: int = 1) -> np.ndarray:
-        """Get the data from the measurement from ASF burst GeoTIFFs.
+        """Get the data for the measurement from ASF burst GeoTIFFs.
 
         Args:
             band: The GeoTIFF band to read
@@ -74,6 +74,7 @@ class Measurement:
         return data
 
     def get_burst_byte_offsets(self):
+        """Get the byte offsets of each burst in the measurement GeoTIFF."""
         with TiffFile(self.path) as tif:
             if len(tif.pages) != 1:
                 raise ValueError('Byte offset calculation only valid for GeoTIFFs with one band.')
@@ -113,15 +114,20 @@ class Measurement:
             out_path: The path to write the SLC GeoTIFF to
             update_info: Whether to update the Measurement metadata
         """
-        mem_drv = gdal.GetDriverByName('MEM')
-        mem_ds = mem_drv.Create('', self.total_width, self.total_length, 1, gdal.GDT_CInt16)
+        gtiff = gdal.GetDriverByName('GTiff')
+        blank_ds = gtiff.Create(str(out_path), self.total_width, self.total_length, 1, gdal.GDT_CInt16)
+        blank_band = blank_ds.GetRasterBand(1)
+        blank_band.SetNoDataValue(0)
+        blank_band.FlushCache()
+        blank_ds = None
+
+        ds = gdal.Open(str(out_path), gdal.GA_Update)
+        band = ds.GetRasterBand(1)
         data = self.get_data()
-        band = mem_ds.GetRasterBand(1)
         band.WriteArray(data)
-        band.SetNoDataValue(0)
-        self.add_metadata(mem_ds)
-        gdal.Translate(str(out_path), mem_ds, format='GTiff')
-        mem_ds = None
+        self.add_metadata(ds)
+        band.FlushCache()
+        ds = None
 
         if update_info:
             self.path = out_path
