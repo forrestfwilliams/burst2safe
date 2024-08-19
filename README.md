@@ -8,7 +8,6 @@ Here is the current compatibility status of `burst2safe` with the major Sentinel
 |------------------------------------------------------------------------|------------|----------------|----------------|
 | [GAMMA](https://www.gamma-rs.ch)                                       | Yes        | 20240701       | None           |
 | [ISCE2 (including TopsStack)](https://github.com/isce-framework/isce2) | Yes        | 2.6.3          | None           |
-| [ISCE2](https://github.com/isce-framework/isce2)                       | Yes        | 2.6.3          | None           |
 | [ISCE3/s1-reader](https://github.com/isce-framework/s1-reader)         | Yes        | 0.2.4          | `--all-anns`   |
 | [SNAP](https://step.esa.int/main/toolboxes/snap/)                      | Untested   | N/A            | Unknown        |
 | [GMTSAR](https://step.esa.int/main/toolboxes/snap/)                    | Untested   | N/A            | Unknown        |
