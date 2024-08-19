@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1]
+
+### Changed
+* Slightly refactored `measurement.create_geotiff` to create a blank geotiff first, then write to it
+* Reduced tifffile minimum version from 2024.0.0 to 2022.04.022 to support ISCE2 workflows.
+* Pinned numpy to < 2.1.0 to avoid [this data type issue](https://github.com/shapely/shapely/issues/2098)
+
 ## [1.1.0]
 
 ### Added
