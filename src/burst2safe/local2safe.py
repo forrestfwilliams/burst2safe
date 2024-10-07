@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from burst2safe import utils
-from burst2safe.burst_id import calculate_burstid_opera
+from burst2safe.burst_id import calculate_burstid
 from burst2safe.safe import Safe
 
 
@@ -35,7 +35,7 @@ def burst_from_local(
     product = utils.get_subxml_from_metadata(xml_path, 'product', swath, polarization)
     sensing_time_str = product.findall('swathTiming/burstList/burst')[burst_index].find('sensingTime').text
     anx_time_str = meta_orbit.find('{*}extension/{*}orbitProperties/{*}ascendingNodeTime').text
-    burst_id, rel_orbit = calculate_burstid_opera(
+    burst_id, rel_orbit = calculate_burstid(
         sensing_time_str, anx_time_str, rel_orbit_start, rel_orbit_stop, swath
     )
     info = utils.BurstInfo(

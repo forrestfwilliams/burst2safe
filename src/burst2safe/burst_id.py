@@ -34,7 +34,67 @@ class InvalidModeNameError(Exception):
     pass
 
 
-def calculate_burstid_opera(
+def _get_mode_timing(mode_name: str) -> tuple:
+    """
+    Get the timing parameters for a given mode.
+
+    Args:
+        mode_name: Mode name (EW,IW) or subswath name (EW2 etc)
+
+    Returns:
+        PREAMBLE_LENGTH, BEAM_CYCLE_TIME for passed mode
+    """
+    try:
+        return MODE_TIMING[mode_name[:2].upper()]
+    except KeyError as e:
+        raise InvalidModeNameError(e)
+
+
+def _calc_start_subsw1(start_offsets: list, swath_num: int, sensing_time: datetime) -> datetime:
+    """Calculates the start time of the #1 subswath given any subswath in a burst.
+
+    Args:
+        start_offsets: list of start offsets, times since IW1
+        swath_num: swath number.
+        sensing_time: datetime of the sensing time of the first input line of this burst [UTC]
+
+    Returns:
+        datetime of the start of the first subswath
+    """
+    offset = start_offsets[swath_num - 1]
+    start_subsw1 = sensing_time + timedelta(seconds=offset)
+    return start_subsw1
+
+
+def _calc_esa_burstid(
+    time_since_anx: timedelta, orbit_number_start: int, preamble_len: timedelta, beam_cycle_time: timedelta
+) -> int:
+    """Calculates the ESA Burst ID given the given parameters.
+    Extracted from the opera function for the purposes of reuse IW & EW
+
+    Args:
+        time_since_anx: time since ascending node crossing
+        orbit_number_start: Relative orbit number at the start of the acquisition
+        preamble_len: Preamble length
+        beam_cycle_time: Beam cycle time
+
+    Returns:
+        ESA Burst ID
+    """
+
+    # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
+    # tb: mid-burst sensing time (sensing_time)
+    # t_anx: ascending node time (ascending_node_dt)
+    # r: relative orbit number   (relative_orbit_start)
+    dt_b = time_since_anx + (orbit_number_start - 1) * NOMINAL_ORBITAL_DURATION
+
+    # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
+    esa_burst_id = 1 + int(np.floor((dt_b - preamble_len) / beam_cycle_time))
+
+    return esa_burst_id
+
+
+def calculate_burstid(
     sensing_time_iso: str,
     anx_time_iso: str,
     orbit_number_start: int,
@@ -48,37 +108,27 @@ def calculate_burstid_opera(
     a burst may change mid-frame. Uses the ESA convention defined in the
     Sentinel-1 Level 1 Detailed Algorithm Definition.
 
-    Parameters
-    ----------
-    sensing_time_iso : str
-        Iso date of sensing time of the first input line of this burst [UTC]
+    Args:
+        sensing_time_iso: Iso date of sensing time of the first input line of this burst [UTC]
         The XML tag is sensingTime in the annotation file.
-    anx_time_iso : str
-        Time of the ascending node prior to the start of the scene.
-    orbit_number_start : int
-        Relative orbit number at the start of the acquisition, from 1-175.
-    orbit_number_stop : int
-        Relative orbit number at the end of the acquisition.
-    subswath : str, {'IW1', 'IW2', 'IW3'}
-        Name of the subswath of the burst (not case sensitive).
+        anx_time_iso: Time of the ascending node prior to the start of the scene.
+        orbit_number_start: Relative orbit number at the start of the acquisition, from 1-175.
+        orbit_number_stop: Relative orbit number at the end of the acquisition.
+        subswath: Name of the subswath of the burst (not case sensitive).
 
-    Returns
-    -------
-    burst ID, orbit number
+    Returns:
+        burst ID, orbit number
 
-    Notes
-    -----
+    Notes:
     The `orbit_number_start` and `orbit_number_stop` parameters are used to determine if the
     scene crosses the equator. They are the same if the frame does not cross
     the equator.
 
-    References
-    ----------
+    References:
     ESA Sentinel-1 Level 1 Detailed Algorithm Definition
     https://sentinels.copernicus.eu/documents/247904/1877131/S1-TN-MDA-52-7445_Sentinel-1+Level+1+Detailed+Algorithm+Definition_v2-4.pdf/83624863-6429-cfb8-2371-5c5ca82907b8
 
     Stolen from https://github.com/opera-adt/s1-reader/blob/main/src/s1reader/s1_burst_id.py
-
     """
     sensing_dt = dateparser.parse(sensing_time_iso)
     asc_node_dt = dateparser.parse(anx_time_iso)
@@ -99,16 +149,7 @@ def calculate_burstid_opera(
     # EW4 -> EW5 ~0.5653802400407812
     # EW5 -> EW1 ~0.619247213084539
 
-    burst_times = {
-        'IW': [0.832, 1.078, 0.848],
-        'EW': [
-            0.683,
-            0.559,
-            0.612,
-            0.565,
-            0.619,
-        ],
-    }
+    burst_times = {'IW': [0.832, 1.078, 0.848], 'EW': [0.683, 0.559, 0.612, 0.565, 0.619]}
 
     if mode == 'IW':
         iw1_start_offsets = [
@@ -169,54 +210,3 @@ def calculate_burstid_opera(
         raise InvalidModeNameError('Invalid mode name: %s' % mode)
 
     return esa_burst_id, orbit_number
-
-
-def _calc_start_subsw1(start_offsets: list, swath_num: int, sensing_time: datetime) -> datetime:
-    """Calculates the start time of the #1 subswath given any subswath in a burst.
-
-    :param start_offsets: list of start offsets, times since IW1
-    :param swath_num: swath number.
-    :param sensing_time:
-    :return:
-    """
-    offset = start_offsets[swath_num - 1]
-    start_subsw1 = sensing_time + timedelta(seconds=offset)
-    return start_subsw1
-
-
-def _calc_esa_burstid(
-    time_since_anx: timedelta, orbit_number_start: int, preamble_len: timedelta, beam_cycle_time: timedelta
-):
-    """Calculates the burst ID given these parameters.
-
-    Extracted from the opera function for the purposes of reuse IW & EW
-
-    :param time_since_anx: time since ascending node crossing
-    :param orbit_number_start:
-    :param preamble_len: Preamble length
-    :param beam_cycle_time: Beam cycle time
-    :return:
-    """
-
-    # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
-    # tb: mid-burst sensing time (sensing_time)
-    # t_anx: ascending node time (ascending_node_dt)
-    # r: relative orbit number   (relative_orbit_start)
-    dt_b = time_since_anx + (orbit_number_start - 1) * NOMINAL_ORBITAL_DURATION
-
-    # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
-    esa_burst_id = 1 + int(np.floor((dt_b - preamble_len) / beam_cycle_time))
-
-    return esa_burst_id
-
-
-def _get_mode_timing(mode_name: str) -> tuple:
-    """
-
-    :param mode_name: Mode name (EW,IW) or subswath name (EW2 etc)
-    :return: tuple (PREAMBLE_LENGTH, BEAM_CYCLE_TIME,) for passed mode
-    """
-    try:
-        return MODE_TIMING[mode_name[:2].upper()]
-    except KeyError as e:
-        raise InvalidModeNameError(e)
