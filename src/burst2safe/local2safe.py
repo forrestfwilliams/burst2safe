@@ -111,15 +111,15 @@ def main():
     Example:
 
     local2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST.tiff S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml \
-    --slc_name S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85 --swath IW2 --polarization VV --burst_index 3
+        S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85 IW2 VV 3
     """
     parser = argparse.ArgumentParser(description='Generate a SAFE file from local burst extractor outputs')
     parser.add_argument('tiff_path', type=Path, help='Path to the burst TIFF file')
     parser.add_argument('xml_path', type=Path, help='Path to the burst XML file')
-    parser.add_argument('--slc_name', type=str, help='The name of the SLC granule')
-    parser.add_argument('--swath', type=str, help='The name of the swath')
-    parser.add_argument('--polarization', type=str, help='The polarization of the burst')
-    parser.add_argument('--burst_index', type=int, help='The index of the burst within the swath')
+    parser.add_argument('slc_name', type=str, help='The name of the SLC granule')
+    parser.add_argument('swath', type=str, help='The name of the swath')
+    parser.add_argument('polarization', type=str, help='The polarization of the burst')
+    parser.add_argument('burst_index', type=int, help='The index of the burst within the swath')
     parser.add_argument('--all_anns', action='store_true', help='Include all annotations')
     parser.add_argument('--work_dir', type=Path, help='The directory to store temporary files')
     args = parser.parse_args()
