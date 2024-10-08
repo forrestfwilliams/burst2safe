@@ -15,7 +15,7 @@ jobs:
         with:
           ref: develop
 
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: environment.yml
 
@@ -45,7 +45,7 @@ jobs:
         with:
           ref: main
 
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: environment.yml
 
@@ -83,7 +83,7 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: environment.yml
 
