@@ -10,6 +10,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 * `local2safe`, a utility that creates single-burst SAFEs using burst extractor data and metadata outputs that are available locally.
+* `burst_id.py`, using functionality created by Ben Barton, calculates a burst's ESA Burst ID.
 
 ## [1.1.1]
 
