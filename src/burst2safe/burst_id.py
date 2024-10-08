@@ -81,7 +81,6 @@ def _calc_esa_burstid(
     Returns:
         ESA Burst ID
     """
-
     # Eq. 9-89: ∆tb = tb − t_anx + (r - 1)T_orb
     # tb: mid-burst sensing time (sensing_time)
     # t_anx: ascending node time (ascending_node_dt)
@@ -90,7 +89,6 @@ def _calc_esa_burstid(
 
     # Eq. 9-91 :   1 + floor((∆tb − T_pre) / T_beam )
     esa_burst_id = 1 + int(np.floor((dt_b - preamble_len) / beam_cycle_time))
-
     return esa_burst_id
 
 
