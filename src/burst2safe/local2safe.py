@@ -10,7 +10,7 @@ from burst2safe.burst_id import calculate_burstid
 from burst2safe.safe import Safe
 
 
-def burst_from_local(
+def burst_info_from_local(
     tiff_path: Path, xml_path: Path, slc_name: str, swath: str, polarization: str, burst_index: int
 ) -> utils.BurstInfo:
     """Create a BurstInfo object from a local copy of the burst extractor output
@@ -94,7 +94,7 @@ def local2safe(
     if polarization not in valid_pols:
         raise ValueError(f'Invalid polarization: {polarization}')
 
-    burst_infos = [burst_from_local(tiff_path, xml_path, slc_name, swath, polarization, burst_index)]
+    burst_infos = [burst_info_from_local(tiff_path, xml_path, slc_name, swath, polarization, burst_index)]
     print(f'Found {len(burst_infos)} burst(s).')
 
     # print('Check burst group validity...')
