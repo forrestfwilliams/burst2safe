@@ -1,12 +1,11 @@
 import asyncio
-import os
 from pathlib import Path
 from typing import Iterable
 
 import aiohttp
 from tenacity import retry, retry_if_result, stop_after_delay, wait_fixed, wait_random
+from tqdm.asyncio import tqdm
 
-from burst2safe.auth import get_earthdata_credentials
 from burst2safe.utils import BurstInfo
 
 
@@ -39,7 +38,7 @@ async def download_response_async(response, file_path: Path) -> None:
         raise ValueError(f'Error downloading, directory not found: {file_path.parent}')
 
     with open(file_path, 'wb') as f:
-        async for chunk in response.content.iter_chunked(8192):
+        async for chunk in response.content.iter_chunked(2**20):
             f.write(chunk)
 
 
@@ -58,21 +57,17 @@ async def download_consumer(queue):
         response, path = await queue.get()
         if path is None:
             break
-        print(f'Downloading {path}')
+        print(f'Downloading {path.name}...')
         await download_response_async(response, path)
     print('Consumer: Done')
 
 
-async def download_async(url_dict, token) -> None:
+async def download_async(url_dict) -> None:
     queue = asyncio.Queue()
-    headers = {'Authorization': f'Bearer {token}'}
-    async with aiohttp.ClientSession(headers=headers, trust_env=True) as session:
-        await asyncio.gather(download_producer(url_dict, session, queue), download_consumer(queue))
+    async with aiohttp.ClientSession(trust_env=True) as session:
+        await tqdm.gather(download_producer(url_dict, session, queue), download_consumer(queue))
 
 
 def download_bursts(burst_infos: Iterable[BurstInfo]):
     tiffs, xmls = get_url_dict(burst_infos)
-    username, password = get_earthdata_credentials()
-    token = os.getenv('EDL_TOKEN')
-    token = aiohttp.BasicAuth(username, password)
-    asyncio.run(download_async({**tiffs, **xmls}, token))
+    asyncio.run(download_async({**tiffs, **xmls}))
