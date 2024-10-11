@@ -4,7 +4,6 @@ from typing import Iterable
 
 import aiohttp
 from tenacity import retry, retry_if_result, stop_after_delay, wait_fixed, wait_random
-from tqdm.asyncio import tqdm
 
 from burst2safe.utils import BurstInfo
 
@@ -38,36 +37,34 @@ async def download_response_async(response, file_path: Path) -> None:
         raise ValueError(f'Error downloading, directory not found: {file_path.parent}')
 
     with open(file_path, 'wb') as f:
-        async for chunk in response.content.iter_chunked(2**20):
+        async for chunk in response.content.iter_chunked(2**14):
             f.write(chunk)
 
 
 async def download_producer(url_dict, session, queue):
-    print('Producer: Running')
     for path, url in url_dict.items():
         response = await retry_get_response_async(session, url=url)
         await queue.put((response, path))
     await queue.put((None, None))
-    print('Producer: Done')
 
 
 async def download_consumer(queue):
-    print('Consumer: Running')
     while True:
         response, path = await queue.get()
         if path is None:
             break
-        print(f'Downloading {path.name}...')
         await download_response_async(response, path)
-    print('Consumer: Done')
 
 
 async def download_async(url_dict) -> None:
     queue = asyncio.Queue()
     async with aiohttp.ClientSession(trust_env=True) as session:
-        await tqdm.gather(download_producer(url_dict, session, queue), download_consumer(queue))
+        await asyncio.gather(download_producer(url_dict, session, queue), download_consumer(queue))
 
 
 def download_bursts(burst_infos: Iterable[BurstInfo]):
     tiffs, xmls = get_url_dict(burst_infos)
     asyncio.run(download_async({**tiffs, **xmls}))
+    missing_data = [x for x in {**tiffs, **xmls}.keys() if not x.exists]
+    if missing_data:
+        raise ValueError(f'Error downloading, missing files: {", ".join(missing_data)}')
