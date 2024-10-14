@@ -5,8 +5,8 @@ from typing import Iterable
 import aiohttp
 from tenacity import retry, retry_if_result, stop_after_delay, wait_fixed, wait_random
 
-from burst2safe.utils import BurstInfo
 from burst2safe.auth import check_earthdata_credentials
+from burst2safe.utils import BurstInfo
 
 
 def get_url_dict(burst_infos: Iterable[BurstInfo], force: bool = False) -> dict:
