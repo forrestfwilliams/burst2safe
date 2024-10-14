@@ -137,7 +137,6 @@ def find_group(
     swaths: Optional[Iterable] = None,
     mode: str = 'IW',
     min_bursts: int = 1,
-    orbit_is_relative=False,
 ) -> List[S1BurstProduct]:
     """Find burst groups using ASF Search.
 
@@ -148,7 +147,6 @@ def find_group(
         swaths: List of swaths to include (default: all)
         mode: The collection mode to use (IW or EW) (default: IW)
         min_bursts: The minimum number of bursts per swath (default: 1)
-        orbit_is_relative: Whether the orbit number is relative or absolute (default: False)
 
     Returns:
         A list of S1BurstProduct objects
@@ -173,9 +171,10 @@ def find_group(
         if bad_swaths:
             raise ValueError(f'Invalid swaths: {" ".join(bad_swaths)}')
 
-    opts = {'dataset': asf_search.constants.DATASET.SLC_BURST, 'intersectsWith': footprint.wkt, 'beamMode': mode}
-    opts['relativeOrbit' if orbit_is_relative else 'absoluteOrbit'] = orbit
-    search_results = asf_search.geo_search(**opts)
+    dataset = asf_search.constants.DATASET.SLC_BURST
+    search_results = asf_search.geo_search(
+        dataset=dataset, absoluteOrbit=orbit, intersectsWith=footprint.wkt, beamMode=mode
+    )
     final_results = []
     for pol, swath in product(polarizations, swaths):
         sub_results = find_swath_pol_group(search_results, pol, swath, min_bursts)
