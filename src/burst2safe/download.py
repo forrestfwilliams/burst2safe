@@ -41,14 +41,14 @@ async def download_response_async(response, file_path: Path) -> None:
             f.write(chunk)
 
 
-async def download_producer(url_dict, session, queue):
+async def response_producer(url_dict, session, queue):
     for path, url in url_dict.items():
         response = await retry_get_response_async(session, url=url)
         await queue.put((response, path))
     await queue.put((None, None))
 
 
-async def download_consumer(queue):
+async def response_consumer(queue):
     while True:
         response, path = await queue.get()
         if path is None:
@@ -59,7 +59,7 @@ async def download_consumer(queue):
 async def download_async(url_dict) -> None:
     queue = asyncio.Queue()
     async with aiohttp.ClientSession(trust_env=True) as session:
-        await asyncio.gather(download_producer(url_dict, session, queue), download_consumer(queue))
+        await asyncio.gather(response_producer(url_dict, session, queue), response_consumer(queue))
 
 
 def download_bursts(burst_infos: Iterable[BurstInfo]):
@@ -67,4 +67,4 @@ def download_bursts(burst_infos: Iterable[BurstInfo]):
     asyncio.run(download_async({**tiffs, **xmls}))
     missing_data = [x for x in {**tiffs, **xmls}.keys() if not x.exists]
     if missing_data:
-        raise ValueError(f'Error downloading, missing files: {", ".join(missing_data)}')
+        raise ValueError(f'Error downloading, missing files: {", ".join(missing_data.name)}')
