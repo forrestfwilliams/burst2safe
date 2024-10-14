@@ -13,7 +13,7 @@ import numpy as np
 from asf_search.Products.S1BurstProduct import S1BurstProduct
 from shapely.geometry import Polygon
 
-from burst2safe.auth import get_earthdata_credentials
+from burst2safe.auth import check_earthdata_credentials
 from burst2safe.utils import BurstInfo, download_url_with_retries
 
 
@@ -227,9 +227,9 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
         downloads[burst_info.metadata_path] = burst_info.metadata_url
     download_info = [(value, key.parent, key.name) for key, value in downloads.items()]
     urls, dirs, names = zip(*download_info)
-
-    username, password = get_earthdata_credentials()
-    session = asf_search.ASFSession().auth_with_creds(username, password)
+    
+    check_earthdata_credentials()
+    session = asf_search.ASFSession()
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:
         for url, dir, name in zip(urls, dirs, names):

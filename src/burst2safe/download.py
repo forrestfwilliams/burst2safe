@@ -6,6 +6,7 @@ import aiohttp
 from tenacity import retry, retry_if_result, stop_after_delay, wait_fixed, wait_random
 
 from burst2safe.utils import BurstInfo
+from burst2safe.auth import check_earthdata_credentials
 
 
 def get_url_dict(burst_infos: Iterable[BurstInfo], force: bool = False) -> dict:
@@ -64,6 +65,7 @@ async def download_async(url_dict) -> None:
 
 def download_bursts(burst_infos: Iterable[BurstInfo]):
     tiffs, xmls = get_url_dict(burst_infos)
+    check_earthdata_credentials()
     asyncio.run(download_async({**tiffs, **xmls}))
     missing_data = [x for x in {**tiffs, **xmls}.keys() if not x.exists]
     if missing_data:
