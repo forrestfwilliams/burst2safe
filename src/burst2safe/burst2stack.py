@@ -3,13 +3,14 @@
 from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 from shapely.geometry import Polygon
 
 from burst2safe import utils
-from burst2safe.burst2safe import burst2safe
-from burst2safe.search import find_stack_orbits
+from burst2safe.download import download_bursts
+from burst2safe.safe import Safe
+from burst2safe.search import find_group
 
 
 DESCRIPTION = """Convert a stack of ASF burst SLCs to a stack of ESA SAFEs.
@@ -31,7 +32,8 @@ def burst2stack(
     all_anns: bool = False,
     keep_files: bool = False,
     work_dir: Optional[Path] = None,
-) -> Path:
+    parallel: bool = False,
+) -> List[Path]:
     """Convert a stack of burst granules to a stack of ESA SAFEs.
     Wraps the burst2safe function to handle multiple dates.
 
@@ -48,22 +50,44 @@ def burst2stack(
         keep_files: Keep the intermediate files
         work_dir: The directory to create the SAFE in (default: current directory)
     """
-    absolute_orbits = find_stack_orbits(rel_orbit, extent, start_date, end_date)
-    print(f'Creating SAFEs for {len(absolute_orbits)} time periods...')
-    for orbit in absolute_orbits:
-        print()
-        burst2safe(
-            granules=None,
-            orbit=orbit,
-            extent=extent,
-            polarizations=polarizations,
-            swaths=swaths,
-            mode=mode,
-            min_bursts=min_bursts,
-            all_anns=all_anns,
-            keep_files=keep_files,
-            work_dir=work_dir,
-        )
+    burst_search_results = find_group(
+        rel_orbit,
+        extent,
+        polarizations,
+        swaths,
+        mode,
+        min_bursts,
+        use_relative_orbit=True,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    burst_infos = utils.get_burst_infos(burst_search_results, work_dir)
+    abs_orbits = utils.drop_duplicates([burst_info.absolute_orbit for burst_info in burst_infos])
+    print(f'Found {len(burst_infos)} burst(s), comprising {len(abs_orbits)} SAFE(s).')
+
+    print('Check burst group validities...')
+    burst_sets = [[bi for bi in burst_infos if bi.absolute_orbit == orbit] for orbit in abs_orbits]
+    # Checking burst group validities before download to fail faster
+    for burst_infos in burst_sets:
+        Safe.check_group_validity(burst_infos)
+
+    print('Downloading data...')
+    download_bursts(burst_infos, parallel=parallel)
+    [info.add_shape_info() for info in burst_infos]
+    [info.add_start_stop_utc() for info in burst_infos]
+    print('Download complete.')
+
+    print('Creating SAFEs...')
+    safe_paths = []
+    for burst_infos in burst_sets:
+        safe = Safe(burst_infos, all_anns, work_dir)
+        safe_path = safe.create_safe()
+        safe_paths.append(safe_path)
+        if not keep_files:
+            safe.cleanup()
+    print('SAFEs creaated!')
+
+    return safe_paths
 
 
 def main() -> None:
@@ -89,6 +113,7 @@ def main() -> None:
     )
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
+    parser.add_argument('--parallel', action='store_true', default=False, help='Download bursts in parallel')
 
     args = utils.reparse_args(parser.parse_args(), tool='burst2stack')
 
@@ -104,4 +129,5 @@ def main() -> None:
         all_anns=args.all_anns,
         keep_files=args.keep_files,
         work_dir=args.output_dir,
+        parallel=args.parallel,
     )

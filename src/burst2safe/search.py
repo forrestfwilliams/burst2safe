@@ -38,7 +38,7 @@ def find_granules(granules: Iterable[str]) -> List[S1BurstProduct]:
     return list(results)
 
 
-def find_stack_orbits(rel_orbit: int, extent: Polygon, start_date: datetime, end_date: datetime) -> List[int]:
+def find_stack_data(rel_orbit: int, extent: Polygon, start_date: datetime, end_date: datetime) -> List[int]:
     """Find all orbits in a stack using ASF Search.
 
     Args:
@@ -54,11 +54,11 @@ def find_stack_orbits(rel_orbit: int, extent: Polygon, start_date: datetime, end
         dataset=dataset,
         relativeOrbit=rel_orbit,
         intersectsWith=extent.centroid.wkt,
-        start=start_date.strftime('%Y-%m-%d'),
-        end=end_date.strftime('%Y-%m-%d'),
+        start=f'{start_date.strftime('%Y-%m-%d')}T00:00:00Z',
+        end=f'{end_date.strftime('%Y-%m-%d')}T23:59:59Z',
     )
     absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
-    return absolute_orbits
+    return absolute_orbits, search_results
 
 
 def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> List[S1BurstProduct]:
@@ -94,28 +94,35 @@ def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> Lis
     return search_results
 
 
-def find_swath_pol_group(
-    search_results: List[S1BurstProduct], pol: str, swath: Optional[str], min_bursts: int
+def get_burst_group(
+    search_results: List[S1BurstProduct],
+    pol: str,
+    swath: Optional[str] = None,
+    orbit: Optional[int] = None,
+    min_bursts: int = 0,
 ) -> List[S1BurstProduct]:
-    """Find a group of bursts with the same polarization and swath.
+    """Find a group of bursts with the same polarization, swath and optionally orbit.
     Add surrounding bursts if the group is too small.
 
     Args:
         search_results: A list of S1BurstProduct objects
         pol: The polarization to search for
         swath: The swath to search for
+        orbit: The absolute orbit number of the bursts
         min_bursts: The minimum number of bursts per swath
 
     Returns:
         An updated list of S1BurstProduct objects
     """
+    params = []
+    if orbit:
+        search_results = [result for result in search_results if result.properties['orbit'] == orbit]
+        params.append(f'orbit {orbit}')
     if swath:
         search_results = [result for result in search_results if result.properties['burst']['subswath'] == swath]
-    search_results = [result for result in search_results if result.properties['polarization'] == pol]
-
-    params = [f'polarization {pol}']
-    if swath:
         params.append(f'swath {swath}')
+    search_results = [result for result in search_results if result.properties['polarization'] == pol]
+    params.append(f'polarization {pol}')
     params = ', '.join(params)
 
     if not search_results:
@@ -137,6 +144,9 @@ def find_group(
     swaths: Optional[Iterable] = None,
     mode: str = 'IW',
     min_bursts: int = 1,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    use_relative_orbit: bool = False,
 ) -> List[S1BurstProduct]:
     """Find burst groups using ASF Search.
 
@@ -147,6 +157,7 @@ def find_group(
         swaths: List of swaths to include (default: all)
         mode: The collection mode to use (IW or EW) (default: IW)
         min_bursts: The minimum number of bursts per swath (default: 1)
+        use_relative_orbit: Use relative orbit number instead of absolute orbit number (default: False)
 
     Returns:
         A list of S1BurstProduct objects
@@ -171,13 +182,27 @@ def find_group(
         if bad_swaths:
             raise ValueError(f'Invalid swaths: {" ".join(bad_swaths)}')
 
-    dataset = asf_search.constants.DATASET.SLC_BURST
-    search_results = asf_search.geo_search(
-        dataset=dataset, absoluteOrbit=orbit, intersectsWith=footprint.wkt, beamMode=mode
-    )
+    if use_relative_orbit and not (start_date and end_date):
+        raise ValueError('You must provide start and end dates when using relative orbit number.')
+
+    opts = dict(dataset=asf_search.constants.DATASET.SLC_BURST, intersectsWith=footprint.wkt, beamMode=mode)
+    if use_relative_orbit:
+        opts['relativeOrbit'] = orbit
+        opts['start'] = (f'{start_date.strftime('%Y-%m-%d')}T00:00:00Z',)
+        opts['end'] = (f'{end_date.strftime('%Y-%m-%d')}T23:59:59Z',)
+    else:
+        opts['absoluteOrbit'] = orbit
+    search_results = asf_search.geo_search(**opts)
+
     final_results = []
-    for pol, swath in product(polarizations, swaths):
-        sub_results = find_swath_pol_group(search_results, pol, swath, min_bursts)
+    if use_relative_orbit:
+        absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
+        group_definitions = product(polarizations, swaths, absolute_orbits)
+    else:
+        group_definitions = product(polarizations, swaths)
+
+    for group_definition in group_definitions:
+        sub_results = get_burst_group(search_results, *group_definition, min_bursts=min_bursts)
         final_results.extend(sub_results)
     return final_results
 
