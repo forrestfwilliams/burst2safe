@@ -58,7 +58,7 @@ def burst_info_from_local(
     date_format = '%Y%m%dT%H%M%S'
     start_utc_str = datetime.strftime(info.start_utc, date_format)
     info.date = datetime.strptime(datetime.strftime(info.start_utc, date_format), date_format)
-    info.granule = f'S1_{burst_id}_{swath}_{start_utc_str}_{polarization}_{slc_name.split('_')[-1]}-BURST'
+    info.granule = f'S1_{burst_id}_{swath}_{start_utc_str}_{polarization}_{slc_name.split("_")[-1]}-BURST'
     return info
 
 
