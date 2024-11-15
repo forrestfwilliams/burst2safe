@@ -32,7 +32,6 @@ def burst2stack(
     all_anns: bool = False,
     keep_files: bool = False,
     work_dir: Optional[Path] = None,
-    parallel: bool = False,
 ) -> List[Path]:
     """Convert a stack of burst granules to a stack of ESA SAFEs.
     Wraps the burst2safe function to handle multiple dates.
@@ -72,7 +71,7 @@ def burst2stack(
         Safe.check_group_validity(burst_infos)
 
     print('Downloading data...')
-    download_bursts(burst_infos, parallel=parallel)
+    download_bursts(burst_infos)
     [info.add_shape_info() for info in burst_infos]
     [info.add_start_stop_utc() for info in burst_infos]
     print('Download complete.')
@@ -113,7 +112,6 @@ def main() -> None:
     )
     parser.add_argument('--keep-files', action='store_true', default=False, help='Keep the intermediate files')
     parser.add_argument('--output-dir', type=str, default=None, help='Output directory to save to')
-    parser.add_argument('--parallel', action='store_true', default=False, help='Download bursts in parallel')
 
     args = utils.reparse_args(parser.parse_args(), tool='burst2stack')
 
@@ -129,5 +127,4 @@ def main() -> None:
         all_anns=args.all_anns,
         keep_files=args.keep_files,
         work_dir=args.output_dir,
-        parallel=args.parallel,
     )
