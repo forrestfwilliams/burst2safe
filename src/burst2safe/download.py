@@ -1,11 +1,8 @@
 import asyncio
-import os
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Iterable
 
 import aiohttp
-import numpy as np
 from tenacity import retry, retry_if_result, stop_after_attempt, stop_after_delay, wait_fixed, wait_random
 
 from burst2safe.auth import check_earthdata_credentials
@@ -112,32 +109,15 @@ async def download_async(url_dict: dict) -> None:
         await asyncio.gather(response_producer(url_dict, session, queue), response_consumer(queue))
 
 
-def download_bursts_async(burst_infos: Iterable[BurstInfo]) -> None:
+def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     """Download the burst data and metadata files using an async queue.
 
     Args:
         burst_infos: A list of BurstInfo objects
     """
+    check_earthdata_credentials()
     tiffs, xmls = get_url_dict(burst_infos)
-    check_earthdata_credentials()
     asyncio.run(download_async({**xmls, **tiffs}))
-
-
-def download_bursts(burst_infos: Iterable[BurstInfo], parallel: bool = False) -> None:
-    """Download the burst data and metadata files using multiple workers.
-
-    Args:
-        burst_infos: A list of BurstInfo objects
-    """
-    check_earthdata_credentials()
-    if parallel:
-        max_threads = min(len(burst_infos), os.cpu_count() + 2)
-        burst_info_sets = [list(x) for x in np.array_split(burst_infos, max_threads)]
-        with ThreadPoolExecutor(max_threads) as executor:
-            executor.map(download_bursts_async, burst_info_sets)
-    else:
-        download_bursts_async(burst_infos)
-
     tiffs, xmls = get_url_dict(burst_infos, force=True)
     missing_data = [x for x in {**xmls, **tiffs}.keys() if not x.exists]
     if missing_data:
