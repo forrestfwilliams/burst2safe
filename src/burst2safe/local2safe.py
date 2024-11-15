@@ -1,6 +1,7 @@
 """Generate a SAFE file from local burst extractor outputs"""
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -55,26 +56,69 @@ def burst_info_from_local(
     info.add_shape_info()
     info.add_start_stop_utc()
     date_format = '%Y%m%dT%H%M%S'
+    start_utc_str = datetime.strftime(info.start_utc, date_format)
     info.date = datetime.strptime(datetime.strftime(info.start_utc, date_format), date_format)
+    info.granule = f'S1_{burst_id}_{swath}_{start_utc_str}_{polarization}_{slc_name.split("_")[-1]}-BURST'
     return info
 
 
-def local2safe(
-    tiff_path: Path,
-    xml_path: Path,
-    slc_name: str,
-    swath: str,
-    polarization: str,
-    burst_index: int,
-    all_anns: bool = False,
-    work_dir: Optional[Path] = None,
-) -> Path:
-    """Convert a burst granule to the ESA SAFE format using local files
+def load_burst_infos(slc_dict: dict) -> list[utils.BurstInfo]:
+    """Load the burst infos from the SLC tree
 
     Args:
-        tiff_path: The path to the TIFF file
-        xml_path: The path to the XML file
-        burst_index: The index of the burst within the swath
+        slc_dict: SLC tree dict with format: {slc_name: {swath: {polarization: {burst_index: {DATA:tiff_path, METADATA:xml_path}}}}}
+                Can contain an abitrary number of bursts as long as they are a valid merge group
+
+    Returns:
+        A list of BurstInfo objects
+    """
+    valid_swaths = ['IW1', 'IW2', 'IW3', 'EW1', 'EW2', 'EW3', 'EW4', 'EW5']
+    valid_pols = ['VV', 'VH', 'HV', 'HH']
+    burst_infos = []
+    for slc_name in slc_dict:
+        slc_name = slc_name.upper()
+        swath_dict = slc_dict[slc_name]
+
+        for swath in swath_dict:
+            swath = swath.upper()
+            if swath not in valid_swaths:
+                raise ValueError(f'Invalid swath: {swath}')
+
+            polarization_dict = swath_dict[swath]
+
+            for polarization in polarization_dict:
+                polarization = polarization.upper()
+                if polarization not in valid_pols:
+                    raise ValueError(f'Invalid polarization: {polarization}')
+
+                burst_dict = polarization_dict[polarization]
+                for burst_index in burst_dict:
+                    burst_info = burst_info_from_local(
+                        Path(burst_dict[burst_index]['DATA']),
+                        Path(burst_dict[burst_index]['METADATA']),
+                        slc_name,
+                        swath,
+                        polarization,
+                        int(burst_index),
+                    )
+                    burst_infos.append(burst_info)
+
+    return burst_infos
+
+
+def local2safe(
+    slc_dict: dict,
+    all_anns: bool = False,
+    keep_files: bool = False,
+    work_dir: Optional[Path] = None,
+) -> Path:
+    """Convert a set of burst granules to the ESA SAFE format using local files
+
+    Args:
+        slc_dict: SLC tree dict with format: {slc_name: {swath: {polarization: {burst_index: {DATA:tiff_path, METADATA:xml_path}}}}}
+                  Can contain an abitrary number of bursts as long as they are a valid merge group
+        all_anns: Include product annotation files for all swaths, regardless of included bursts
+        keep_files: Keep the intermediate files
         work_dir: The directory to store temporary files
 
     Returns:
@@ -82,26 +126,19 @@ def local2safe(
     """
     work_dir = utils.optional_wd(work_dir)
 
-    valid_swaths = ['IW1', 'IW2', 'IW3', 'EW1', 'EW2', 'EW3', 'EW4', 'EW5']
-    swath = swath.upper()
-    if swath not in valid_swaths:
-        raise ValueError(f'Invalid swath: {swath}')
-
-    valid_pols = ['VV', 'VH', 'HV', 'HH']
-    polarization = polarization.upper()
-    if polarization not in valid_pols:
-        raise ValueError(f'Invalid polarization: {polarization}')
-
-    burst_infos = [burst_info_from_local(tiff_path, xml_path, slc_name, swath, polarization, burst_index)]
+    burst_infos = load_burst_infos(slc_dict)
     print(f'Found {len(burst_infos)} burst(s).')
 
-    # print('Check burst group validity...')
-    # Safe.check_group_validity(burst_infos)
+    print('Check burst group validity...')
+    Safe.check_group_validity(burst_infos)
     print('Creating SAFE...')
 
     safe = Safe(burst_infos, all_anns, work_dir)
     safe_path = safe.create_safe()
     print('SAFE created!')
+
+    if not keep_files:
+        safe.cleanup()
 
     return safe_path
 
@@ -110,27 +147,21 @@ def main():
     """Entrypoint for the local2safe script
     Example:
 
-    local2safe S1_136231_IW2_20200604T022312_VV_7C85-BURST.tiff S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85_VV.xml \
-        S1A_IW_SLC__1SDV_20200604T022251_20200604T022318_032861_03CE65_7C85 IW2 VV 3
+    local2safe /path/to/slc_tree.json --all_anns --work_dir /path/to/work_dir
     """
     parser = argparse.ArgumentParser(description='Generate a SAFE file from local burst extractor outputs')
-    parser.add_argument('tiff_path', type=Path, help='Path to the burst TIFF file')
-    parser.add_argument('xml_path', type=Path, help='Path to the burst XML file')
-    parser.add_argument('slc_name', type=str, help='The name of the SLC granule')
-    parser.add_argument('swath', type=str, help='The name of the swath')
-    parser.add_argument('polarization', type=str, help='The polarization of the burst')
-    parser.add_argument('burst_index', type=int, help='The index of the burst within the swath')
+    parser.add_argument(
+        'json_tree_path',
+        type=Path,
+        help='Path to the SLC tree JSON file with format: {slc_name: {swath: {polarization: {burst_index: {DATA:tiff_path, METADATA:xml_path}}}}}',
+    )
     parser.add_argument('--all_anns', action='store_true', help='Include all annotations')
     parser.add_argument('--work_dir', type=Path, help='The directory to store temporary files')
     args = parser.parse_args()
+    slc_tree = json.loads(args.json_tree_path.read_text())
 
     local2safe(
-        args.tiff_path,
-        args.xml_path,
-        args.slc_name,
-        args.swath,
-        args.polarization,
-        args.burst_index,
+        slc_tree,
         args.all_anns,
         args.work_dir,
     )

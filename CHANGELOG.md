@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0]
+
+### Added
+* Capability for `local2safe` to take multiple bursts as input
+
+### Changed
+* Interface for `local2safe` so that it takes a dictionary describing a set of bursts as input
+* `local2safe` CLI so that it takes a JSON describing a set of bursts as input
+
 ## [1.2.0]
 
 ### Added
