@@ -67,19 +67,19 @@ def burst2stack(
     print('Check burst group validities...')
     burst_sets = [[bi for bi in burst_infos if bi.absolute_orbit == orbit] for orbit in abs_orbits]
     # Checking burst group validities before download to fail faster
-    for burst_infos in burst_sets:
-        Safe.check_group_validity(burst_infos)
+    for burst_set in burst_sets:
+        Safe.check_group_validity(burst_set)
 
     print('Downloading data...')
     download_bursts(burst_infos)
-    [info.add_shape_info() for info in burst_infos]
-    [info.add_start_stop_utc() for info in burst_infos]
     print('Download complete.')
 
     print('Creating SAFEs...')
     safe_paths = []
-    for burst_infos in burst_sets:
-        safe = Safe(burst_infos, all_anns, work_dir)
+    for burst_set in burst_sets:
+        [info.add_shape_info() for info in burst_set]
+        [info.add_start_stop_utc() for info in burst_set]
+        safe = Safe(burst_set, all_anns, work_dir)
         safe_path = safe.create_safe()
         safe_paths.append(safe_path)
         if not keep_files:
