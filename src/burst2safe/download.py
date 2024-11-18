@@ -118,7 +118,7 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     check_earthdata_credentials()
     tiffs, xmls = get_url_dict(burst_infos)
     asyncio.run(download_async({**xmls, **tiffs}))
-    tiffs, xmls = get_url_dict(burst_infos, force=True)
+    tiffs, xmls = get_url_dict(burst_infos, force=False)
     missing_data = [x for x in {**xmls, **tiffs}.keys() if not x.exists]
     if missing_data:
         raise ValueError(f'Error downloading, missing files: {", ".join(missing_data.name)}')
