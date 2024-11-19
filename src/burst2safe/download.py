@@ -46,8 +46,8 @@ async def get_async(session: aiohttp.ClientSession, url: str) -> aiohttp.ClientR
     return response
 
 
-@retry(reraise=True, stop=stop_after_attempt(5))
-async def download_url_async(session: aiohttp.ClientSession, url: str, file_path: Path) -> None:
+@retry(reraise=True, stop=stop_after_attempt(3))
+async def download_burst_url_async(session: aiohttp.ClientSession, url: str, file_path: Path) -> None:
     """Retry a GET request until a non-202 response is received, then download data.
 
     Args:
@@ -57,7 +57,18 @@ async def download_url_async(session: aiohttp.ClientSession, url: str, file_path
     """
     response = await get_async(session, url)
     assert response.status == 200
-    assert Path(response.content_disposition.filename).suffix == file_path.suffix
+
+    if file_path.suffix in ['.tif', '.tiff']:
+        returned_filename = response.content_disposition.filename
+    elif file_path.suffix == '.xml':
+        url_parts = str(response.url).split('/')
+        ext = response.content_disposition.filename.split('.')[-1]
+        returned_filename = f'{url_parts[3]}_{url_parts[5]}.{ext}'
+    else:
+        raise ValueError(f'Invalid file extension: {file_path.suffix}')
+    if file_path.name != returned_filename:
+        raise ValueError(f'Race condition encountered, incorrect url returned for file: {file_path.name}')
+
     try:
         with open(file_path, 'wb') as f:
             async for chunk in response.content.iter_chunked(2**14):
@@ -70,7 +81,7 @@ async def download_url_async(session: aiohttp.ClientSession, url: str, file_path
         raise e
 
 
-async def download_async(url_dict: dict) -> None:
+async def download_bursts_async(url_dict: dict) -> None:
     """Download a dictionary of URLs asynchronously.
 
     Args:
@@ -79,7 +90,7 @@ async def download_async(url_dict: dict) -> None:
     async with aiohttp.ClientSession(trust_env=True) as session:
         tasks = []
         for file_path, url in url_dict.items():
-            tasks.append(download_url_async(session, url, file_path))
+            tasks.append(download_burst_url_async(session, url, file_path))
         await asyncio.gather(*tasks)
 
 
@@ -91,7 +102,7 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     """
     check_earthdata_credentials()
     url_dict = get_url_dict(burst_infos)
-    asyncio.run(download_async(url_dict))
+    asyncio.run(download_bursts_async(url_dict))
     full_dict = get_url_dict(burst_infos, force=True)
     missing_data = [x for x in full_dict.keys() if not x.exists]
     if missing_data:
