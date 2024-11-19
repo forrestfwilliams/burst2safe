@@ -1,4 +1,5 @@
 import asyncio
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -31,18 +32,26 @@ def get_url_dict(burst_infos: Iterable[BurstInfo], force: bool = False) -> dict:
 @retry(
     reraise=True, retry=retry_if_result(lambda r: r.status == 202), wait=wait_random(0, 1), stop=stop_after_delay(120)
 )
-async def get_async(session: aiohttp.ClientSession, url: str) -> aiohttp.ClientResponse:
+async def get_async(session: aiohttp.ClientSession, url: str, max_redirects: int = 5) -> aiohttp.ClientResponse:
     """Retry a GET request until a non-202 response is received
 
     Args:
         session: An aiohttp ClientSession
         url: The URL to download
+        max_redirects: The maximum number of redirects to follow
 
     Returns:
         The response object
     """
-    response = await session.get(url)
-    response.raise_for_status()
+    for i in range(max_redirects):
+        response = await session.get(url, allow_redirects=False)
+        response.raise_for_status()
+        if 300 <= response.status < 400:
+            url = response.headers['Location']
+        elif 200 <= response.status < 300:
+            break
+        elif i == max_redirects - 1:
+            raise Exception(f'Maximum number of redirects reached: {max_redirects}')
     return response
 
 
@@ -87,7 +96,13 @@ async def download_bursts_async(url_dict: dict) -> None:
     Args:
         url_dict: A dictionary of URLs to download
     """
-    async with aiohttp.ClientSession(trust_env=True) as session:
+    auth_type = check_earthdata_credentials()
+    if auth_type == 'token':
+        token = os.getenv('EDL_TOKEN')
+        headers = {aiohttp.hdrs.AUTHORIZATION: f'Bearer {token}'}
+    else:
+        headers = {}
+    async with aiohttp.ClientSession(headers=headers, trust_env=True) as session:
         tasks = []
         for file_path, url in url_dict.items():
             tasks.append(download_burst_url_async(session, url, file_path))
@@ -100,7 +115,6 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     Args:
         burst_infos: A list of BurstInfo objects
     """
-    check_earthdata_credentials()
     url_dict = get_url_dict(burst_infos)
     asyncio.run(download_bursts_async(url_dict))
     full_dict = get_url_dict(burst_infos, force=True)

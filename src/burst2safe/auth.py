@@ -6,6 +6,7 @@ from typing import Tuple
 
 
 EARTHDATA_HOST = 'urs.earthdata.nasa.gov'
+EARTHDATA_TOKEN_VAR = 'EDL_TOKEN'
 
 
 def get_netrc() -> Path:
@@ -79,14 +80,18 @@ def check_earthdata_credentials() -> None:
     """
     username, password = find_creds_in_netrc(EARTHDATA_HOST)
     if username and password:
-        return
+        return 'netrc'
 
     username, password = find_creds_in_env('EARTHDATA_USERNAME', 'EARTHDATA_PASSWORD')
     if username and password:
         write_credentials_to_netrc_file(username, password)
-        return
+        return 'netrc'
+
+    if os.getenv(EARTHDATA_TOKEN_VAR):
+        return 'token'
 
     raise ValueError(
         'Please provide NASA Earthdata credentials via your .netrc file,'
-        'or the EARTHDATA_USERNAME and EARTHDATA_PASSWORD environment variables.'
+        'the EARTHDATA_USERNAME and EARTHDATA_PASSWORD environment variables,'
+        'or an EDL Token via the EDL_TOKEN environment variable.'
     )
