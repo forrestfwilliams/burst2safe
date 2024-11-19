@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Iterable
 
 import aiohttp
-from tenacity import retry, retry_if_result, stop_after_attempt, stop_after_delay, wait_fixed, wait_random
+from tenacity import retry, retry_if_result, stop_after_attempt, stop_after_delay, wait_random
 
 from burst2safe.auth import check_earthdata_credentials
 from burst2safe.utils import BurstInfo
@@ -19,46 +19,45 @@ def get_url_dict(burst_infos: Iterable[BurstInfo], force: bool = False) -> dict:
     Returns:
         A dictionary of URLs to download
     """
-    tiffs = {}
-    xmls = {}
+    url_dict = {}
     for burst_info in burst_infos:
         if force or not burst_info.data_path.exists():
-            tiffs[burst_info.data_path] = burst_info.data_url
-
+            url_dict[burst_info.data_path] = burst_info.data_url
         if force or not burst_info.metadata_path.exists():
-            xmls[burst_info.metadata_path] = burst_info.metadata_url
-    return tiffs, xmls
+            url_dict[burst_info.metadata_path] = burst_info.metadata_url
+    return url_dict
 
 
 @retry(
-    reraise=True,
-    retry=retry_if_result(lambda r: r.status == 202),
-    wait=wait_fixed(0.5) + wait_random(0, 1),
-    stop=stop_after_delay(120),
+    reraise=True, retry=retry_if_result(lambda r: r.status == 202), wait=wait_random(0, 1), stop=stop_after_delay(120)
 )
-async def retry_get_response_async(session: aiohttp.ClientSession, url: str) -> aiohttp.ClientResponse:
-    """Retry a GET request until a non-202 response is received.
+async def get_async(session: aiohttp.ClientSession, url: str) -> aiohttp.ClientResponse:
+    """Retry a GET request until a non-202 response is received
 
     Args:
         session: An aiohttp ClientSession
-        url: The URL to GET
+        url: The URL to download
 
     Returns:
-        An aiohttp ClientResponse
+        The response object
     """
     response = await session.get(url)
     response.raise_for_status()
     return response
 
 
-@retry(wait=wait_fixed(0.5), stop=stop_after_attempt(3))
-async def download_response_async(response: aiohttp.ClientResponse, file_path: Path) -> None:
-    """Download the response content to a file.
+@retry(reraise=True, stop=stop_after_attempt(5))
+async def download_url_async(session: aiohttp.ClientSession, url: str, file_path: Path) -> None:
+    """Retry a GET request until a non-202 response is received, then download data.
 
     Args:
-        response: An aiohttp ClientResponse
-        file_path: The path to save the response content to
+        session: An aiohttp ClientSession
+        url: The URL to download
+        file_path: The path to save the downloaded data to
     """
+    response = await get_async(session, url)
+    assert response.status == 200
+    assert Path(response.content_disposition.filename).suffix == file_path.suffix
     try:
         with open(file_path, 'wb') as f:
             async for chunk in response.content.iter_chunked(2**14):
@@ -71,42 +70,17 @@ async def download_response_async(response: aiohttp.ClientResponse, file_path: P
         raise e
 
 
-async def response_producer(url_dict: dict, session: aiohttp.ClientSession, queue: asyncio.Queue) -> None:
-    """Produce responses to download and put them in a queue.
-
-    Args:
-        url_dict: A dictionary of URLs to download
-        session: An aiohttp ClientSession
-        queue: An asyncio Queue
-    """
-    for path, url in url_dict.items():
-        response = await retry_get_response_async(session, url=url)
-        await queue.put((response, path))
-    await queue.put((None, None))
-
-
-async def response_consumer(queue: asyncio.Queue) -> None:
-    """Consume responses from a queue and download them.
-
-    Args:
-        queue: An asyncio Queue
-    """
-    while True:
-        response, path = await queue.get()
-        if path is None:
-            break
-        await download_response_async(response, path)
-
-
 async def download_async(url_dict: dict) -> None:
     """Download a dictionary of URLs asynchronously.
 
     Args:
         url_dict: A dictionary of URLs to download
     """
-    queue = asyncio.Queue()
     async with aiohttp.ClientSession(trust_env=True) as session:
-        await asyncio.gather(response_producer(url_dict, session, queue), response_consumer(queue))
+        tasks = []
+        for file_path, url in url_dict.items():
+            tasks.append(download_url_async(session, url, file_path))
+        await asyncio.gather(*tasks)
 
 
 def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
@@ -116,9 +90,9 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
         burst_infos: A list of BurstInfo objects
     """
     check_earthdata_credentials()
-    tiffs, xmls = get_url_dict(burst_infos)
-    asyncio.run(download_async({**xmls, **tiffs}))
-    tiffs, xmls = get_url_dict(burst_infos, force=False)
-    missing_data = [x for x in {**xmls, **tiffs}.keys() if not x.exists]
+    url_dict = get_url_dict(burst_infos)
+    asyncio.run(download_async(url_dict))
+    full_dict = get_url_dict(burst_infos, force=True)
+    missing_data = [x for x in full_dict.keys() if not x.exists]
     if missing_data:
         raise ValueError(f'Error downloading, missing files: {", ".join(missing_data.name)}')
