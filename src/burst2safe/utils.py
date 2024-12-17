@@ -2,10 +2,11 @@ import json
 import warnings
 from argparse import Namespace
 from binascii import crc_hqx
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 import asf_search
 import lxml.etree as ET
@@ -196,7 +197,7 @@ def get_subxml_from_metadata(
     Returns:
         lxml Element for desired metadata
     """
-    with open(metadata_path, 'r') as metadata_file:
+    with open(metadata_path) as metadata_file:
         metadata = ET.parse(metadata_file).getroot()
 
     if xml_type == 'manifest':

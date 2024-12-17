@@ -1,8 +1,9 @@
 import hashlib
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 import lxml.etree as ET
 
@@ -54,7 +55,7 @@ class ListOfListElements:
     def get_first_time(self, element: ET.Element) -> datetime:
         """Get first time in List element
 
-        args:
+        Args:
             element: The element to get the time from.
 
         Returns:
@@ -101,7 +102,6 @@ class ListOfListElements:
         Returns:
             A filtered element list.
         """
-
         new_list = []
         for elem in element_list:
             if line_bounds[0] <= int(elem.find('line').text) <= line_bounds[1]:

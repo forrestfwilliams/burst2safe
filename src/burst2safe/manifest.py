@@ -312,7 +312,6 @@ class Preview:
 
     def add_subsection(self, body, name, files):
         """Add a file set subsection to the HTML preview."""
-
         h2 = ET.SubElement(body, 'h2')
         h2.text = name
         ul = ET.SubElement(body, 'ul')
