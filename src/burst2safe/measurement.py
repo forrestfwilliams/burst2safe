@@ -1,7 +1,8 @@
 import hashlib
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Tuple
 
 import numpy as np
 from osgeo import gdal, osr
