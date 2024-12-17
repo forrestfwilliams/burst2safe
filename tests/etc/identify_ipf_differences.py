@@ -101,7 +101,7 @@ def extract_support_folder(slc_path):
 
 
 def create_diffs():
-    supports = sorted(Path('.').glob('support*'))
+    supports = sorted(Path().glob('support*'))
     for i in range(len(supports) - 1):
         support1 = supports[i]
         support2 = supports[i + 1]
@@ -112,7 +112,7 @@ def create_diffs():
 
 def identify_changing_versions():
     download_slcs()
-    slc_paths = sorted(list(Path('.').glob('*.zip')))
+    slc_paths = sorted(list(Path().glob('*.zip')))
     for slc_path in slc_paths:
         extract_support_folder(slc_path)
     create_diffs()
@@ -136,7 +136,7 @@ def download_representative_support():
     slcs = [f'{burst.slc_granule}-SLC' for burst in find_representative_bursts(important_only=True)]
     slcs = asf.granule_search(slcs)
     slcs.download('.')
-    slc_paths = sorted(list(Path('.').glob('*.zip')))
+    slc_paths = sorted(list(Path().glob('*.zip')))
     for slc_path in slc_paths:
         extract_support_folder(slc_path)
 

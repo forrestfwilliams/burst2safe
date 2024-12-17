@@ -1,9 +1,10 @@
 """A tool for converting stacks of ASF burst SLCs to stacks of SAFEs"""
 
 from argparse import ArgumentParser
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 from shapely.geometry import Polygon
 

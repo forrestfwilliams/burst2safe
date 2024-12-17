@@ -1,8 +1,8 @@
 from collections import namedtuple
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable
 from unittest.mock import patch
 
 import lxml
@@ -66,7 +66,7 @@ def test_create_burst_info(tmp_path, search_result1):
 def test_get_burst_infos(burst_info1):
     with patch.object(utils, 'create_burst_info') as mock_create:
         mock_create.return_value = burst_info1
-        infos = utils.get_burst_infos(['granule1', 'granule2'], Path(''))
+        infos = utils.get_burst_infos(['granule1', 'granule2'], Path())
 
     assert isinstance(infos, list)
     assert len(infos) == 2

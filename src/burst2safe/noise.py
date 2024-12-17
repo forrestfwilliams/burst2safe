@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 from copy import deepcopy
-from typing import Iterable
 
 import lxml.etree as ET
 import numpy as np
