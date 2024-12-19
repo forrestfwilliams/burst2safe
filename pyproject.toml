@@ -16,7 +16,7 @@ name = "burst2safe"
 requires-python = ">=3.9"
 dynamic = ["version"]
 authors = [
-     {name="Forrest Williams", email="ffwilliams2@alaska.edu"},
+    {name="Forrest Williams", email="ffwilliams2@alaska.edu"},
 ]
 maintainers = [
     {name="ASF APD/Tools Team", email="uaf-asf-apd@alaska.edu"},
