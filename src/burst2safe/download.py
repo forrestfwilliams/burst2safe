@@ -10,6 +10,9 @@ from burst2safe.auth import check_earthdata_credentials
 from burst2safe.utils import BurstInfo
 
 
+COOKIE_URL = 'https://sentinel1.asf.alaska.edu/METADATA_RAW/SA/S1A_IW_RAW__0SSV_20141229T072718_20141229T072750_003931_004B96_B79F.iso.xml'
+
+
 def get_url_dict(burst_infos: Iterable[BurstInfo], force: bool = False) -> dict:
     """Get a dictionary of URLs to download. Keys are save paths, and values are download URLs.
 
@@ -43,15 +46,8 @@ async def get_async(session: aiohttp.ClientSession, url: str, max_redirects: int
     Returns:
         The response object
     """
-    for i in range(max_redirects):
-        response = await session.get(url, allow_redirects=False)
-        response.raise_for_status()
-        if 300 <= response.status < 400:
-            url = response.headers['Location']
-        elif 200 <= response.status < 300:
-            break
-        elif i == max_redirects - 1:
-            raise Exception(f'Maximum number of redirects reached: {max_redirects}')
+    response = await session.get(url)
+    response.raise_for_status()
     return response
 
 
@@ -97,12 +93,14 @@ async def download_bursts_async(url_dict: dict) -> None:
         url_dict: A dictionary of URLs to download
     """
     auth_type = check_earthdata_credentials()
-    if auth_type == 'token':
-        token = os.getenv('EDL_TOKEN')
-        headers = {aiohttp.hdrs.AUTHORIZATION: f'Bearer {token}'}
-    else:
-        headers = {}
+    headers = {'Authorization': f'Bearer {os.getenv("EDL_TOKEN")}'} if auth_type == 'token' else {}
     async with aiohttp.ClientSession(headers=headers, trust_env=True) as session:
+        if auth_type == 'token':
+            # FIXME: Needed while burst extractor API doesn't support EDL tokens
+            cookie_response = await session.get(COOKIE_URL)
+            cookie_response.raise_for_status()
+            cookie_response.close()
+
         tasks = []
         for file_path, url in url_dict.items():
             tasks.append(download_burst_url_async(session, url, file_path))
