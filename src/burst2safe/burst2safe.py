@@ -8,9 +8,9 @@ from typing import Optional
 from shapely.geometry import Polygon
 
 from burst2safe import utils
+from burst2safe.download import download_bursts
 from burst2safe.safe import Safe
 from burst2safe.search import find_bursts
-from burst2safe.download import download_bursts
 
 
 DESCRIPTION = """Convert a set of ASF burst SLCs to the ESA SAFE format.
