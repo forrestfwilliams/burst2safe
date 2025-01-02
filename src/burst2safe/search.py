@@ -55,8 +55,8 @@ def find_stack_data(rel_orbit: int, extent: Polygon, start_date: datetime, end_d
         dataset=dataset,
         relativeOrbit=rel_orbit,
         intersectsWith=extent.centroid.wkt,
-        start=f'{start_date.strftime('%Y-%m-%d')}T00:00:00Z',
-        end=f'{end_date.strftime('%Y-%m-%d')}T23:59:59Z',
+        start=f'{start_date.strftime("%Y-%m-%d")}T00:00:00Z',
+        end=f'{end_date.strftime("%Y-%m-%d")}T23:59:59Z',
     )
     absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
     return absolute_orbits, search_results
@@ -189,8 +189,8 @@ def find_group(
     opts = dict(dataset=asf_search.constants.DATASET.SLC_BURST, intersectsWith=footprint.wkt, beamMode=mode)
     if use_relative_orbit:
         opts['relativeOrbit'] = orbit
-        opts['start'] = (f'{start_date.strftime('%Y-%m-%d')}T00:00:00Z',)
-        opts['end'] = (f'{end_date.strftime('%Y-%m-%d')}T23:59:59Z',)
+        opts['start'] = (f'{start_date.strftime("%Y-%m-%d")}T00:00:00Z',)
+        opts['end'] = (f'{end_date.strftime("%Y-%m-%d")}T23:59:59Z',)
     else:
         opts['absoluteOrbit'] = orbit
     search_results = asf_search.geo_search(**opts)
