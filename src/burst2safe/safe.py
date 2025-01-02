@@ -1,9 +1,10 @@
 import bisect
 import shutil
+from collections.abc import Iterable
 from datetime import datetime
 from itertools import product
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 from shapely.geometry import MultiPolygon, Polygon
@@ -138,7 +139,6 @@ class Safe:
         Returns:
             The name of the SAFE file
         """
-
         platform, beam_mode, product_type = self.burst_infos[0].slc_granule.split('_')[:3]
 
         pol_codes = {'HH': 'SH', 'VV': 'SV', 'VH': 'SV', 'HV': 'SV', 'HH_HV': 'DH', 'VH_VV': 'DV'}

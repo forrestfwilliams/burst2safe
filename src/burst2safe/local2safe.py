@@ -16,7 +16,7 @@ def burst_info_from_local(
 ) -> utils.BurstInfo:
     """Create a BurstInfo object from a local copy of the burst extractor output
 
-    args:
+    Args:
         xml_path: The path to the XML file
         swath: The name of the swath
         burst_index: The index of the burst within the swath

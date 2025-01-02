@@ -1,12 +1,13 @@
 """A package for converting ASF burst SLCs to the SAFE format"""
 
 import warnings
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from itertools import product
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 import asf_search
 import numpy as np

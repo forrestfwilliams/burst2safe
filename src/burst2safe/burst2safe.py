@@ -1,8 +1,9 @@
 """A tool for converting ASF burst SLCs to the SAFE format"""
 
 from argparse import ArgumentParser
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 from shapely.geometry import Polygon
 

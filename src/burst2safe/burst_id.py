@@ -35,8 +35,7 @@ class InvalidModeNameError(Exception):
 
 
 def _get_mode_timing(mode_name: str) -> tuple:
-    """
-    Get the timing parameters for a given mode.
+    """Get the timing parameters for a given mode.
 
     Args:
         mode_name: Mode name (EW,IW) or subswath name (EW2 etc)

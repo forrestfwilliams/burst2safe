@@ -1,7 +1,7 @@
+from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Iterable
 
 import lxml.etree as ET
 import numpy as np
@@ -66,7 +66,8 @@ class Product(Annotation):
         From product specification:
         The productInformation sub-record contains single value fields that
         are merged and included. All other sub-records contain lists which are
-        concatenated. Details are presented in Table 3-11."""
+        concatenated. Details are presented in Table 3-11.
+        """
         general_annotation = ET.Element('generalAnnotation')
 
         product_information = deepcopy(self.inputs[0].find('generalAnnotation/productInformation'))
@@ -115,7 +116,8 @@ class Product(Annotation):
         The fields in the imageInformation record are included and merged
         and all the fields for the processingInformation record are included;
         except for the inputDimensionsList record, which is concatenated.
-        Details are presented in Table 3-12."""
+        Details are presented in Table 3-12.
+        """
         image_annotation = ET.Element('imageAnnotation')
 
         image_information = deepcopy(self.inputs[0].find('imageAnnotation/imageInformation'))
