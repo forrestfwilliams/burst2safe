@@ -1,11 +1,7 @@
-"""A package for converting ASF burst SLCs to the SAFE format"""
-
 import warnings
 from collections.abc import Iterable
-from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from itertools import product
-from multiprocessing import cpu_count
 from pathlib import Path
 from typing import List, Optional
 
@@ -13,9 +9,6 @@ import asf_search
 import numpy as np
 from asf_search.Products.S1BurstProduct import S1BurstProduct
 from shapely.geometry import Polygon
-
-from burst2safe.auth import check_earthdata_credentials
-from burst2safe.utils import BurstInfo, download_url_with_retries
 
 
 warnings.filterwarnings('ignore')
@@ -239,27 +232,3 @@ def find_bursts(
             'You must provide either a list of granules or minimum set of group parameters (orbit, and footprint).'
         )
     return results
-
-
-def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
-    """Download the burst data and metadata files using multiple workers.
-
-    Args:
-        burst_infos: A list of BurstInfo objects
-    """
-    downloads = {}
-    for burst_info in burst_infos:
-        downloads[burst_info.data_path] = burst_info.data_url
-        downloads[burst_info.metadata_path] = burst_info.metadata_url
-    download_info = [(value, key.parent, key.name) for key, value in downloads.items()]
-    urls, dirs, names = zip(*download_info)
-
-    check_earthdata_credentials(append=True)
-    session = asf_search.ASFSession()
-    n_workers = min(len(urls), max(cpu_count() - 2, 1))
-    if n_workers == 1:
-        for url, dir, name in zip(urls, dirs, names):
-            download_url_with_retries(url, dir, name, session)
-    else:
-        with ProcessPoolExecutor(max_workers=n_workers) as executor:
-            executor.map(download_url_with_retries, urls, dirs, names, [session] * len(urls))
