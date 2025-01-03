@@ -32,29 +32,6 @@ def find_granules(granules: Iterable[str]) -> List[S1BurstProduct]:
     return list(results)
 
 
-def find_stack_data(rel_orbit: int, extent: Polygon, start_date: datetime, end_date: datetime) -> List[int]:
-    """Find all orbits in a stack using ASF Search.
-
-    Args:
-        rel_orbit: The relative orbit number of the stack
-        start_date: The start date of the stack
-        end_date: The end date of the stack
-
-    Returns:
-        List of absolute orbit numbers
-    """
-    dataset = asf_search.constants.DATASET.SLC_BURST
-    search_results = asf_search.geo_search(
-        dataset=dataset,
-        relativeOrbit=rel_orbit,
-        intersectsWith=extent.centroid.wkt,
-        start=f'{start_date.strftime("%Y-%m-%d")}T00:00:00Z',
-        end=f'{end_date.strftime("%Y-%m-%d")}T23:59:59Z',
-    )
-    absolute_orbits = list(set([int(result.properties['orbit']) for result in search_results]))
-    return absolute_orbits, search_results
-
-
 def add_surrounding_bursts(bursts: List[S1BurstProduct], min_bursts: int) -> List[S1BurstProduct]:
     """Add bursts to the list to ensure each swath has at least `min_bursts` bursts.
     All bursts must be from the same absolute orbit, swath, and polarization.
@@ -151,6 +128,8 @@ def find_group(
         swaths: List of swaths to include (default: all)
         mode: The collection mode to use (IW or EW) (default: IW)
         min_bursts: The minimum number of bursts per swath (default: 1)
+        start_date: The start date for relative orbit search
+        end_date: The end date for relative orbit search
         use_relative_orbit: Use relative orbit number instead of absolute orbit number (default: False)
 
     Returns:
