@@ -81,7 +81,7 @@ def check_earthdata_credentials(append=False) -> str:
         append: Whether to append the credentials to the netrc file if creds found in the environment
 
     Returns:
-        The method used to find the credentials ('netrc' or 'token')
+        The location of the preferred credentials ('netrc' or 'token')
     """
     if os.getenv(TOKEN_ENV_VAR):
         return 'token'
