@@ -254,7 +254,7 @@ def download_bursts(burst_infos: Iterable[BurstInfo]) -> None:
     download_info = [(value, key.parent, key.name) for key, value in downloads.items()]
     urls, dirs, names = zip(*download_info)
 
-    check_earthdata_credentials()
+    check_earthdata_credentials(append=True)
     session = asf_search.ASFSession()
     n_workers = min(len(urls), max(cpu_count() - 2, 1))
     if n_workers == 1:

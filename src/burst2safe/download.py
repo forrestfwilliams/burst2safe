@@ -6,7 +6,7 @@ from typing import Iterable
 import aiohttp
 from tenacity import retry, retry_if_result, stop_after_attempt, stop_after_delay, wait_random
 
-from burst2safe.auth import check_earthdata_credentials
+from burst2safe.auth import TOKEN_ENV_VAR, check_earthdata_credentials
 from burst2safe.utils import BurstInfo
 
 
@@ -92,8 +92,8 @@ async def download_bursts_async(url_dict: dict) -> None:
     Args:
         url_dict: A dictionary of URLs to download
     """
-    auth_type = check_earthdata_credentials()
-    headers = {'Authorization': f'Bearer {os.getenv("EDL_TOKEN")}'} if auth_type == 'token' else {}
+    auth_type = check_earthdata_credentials(append=True)
+    headers = {'Authorization': f'Bearer {os.getenv(TOKEN_ENV_VAR)}'} if auth_type == 'token' else {}
     async with aiohttp.ClientSession(headers=headers, trust_env=True) as session:
         if auth_type == 'token':
             # FIXME: Needed while burst extractor API doesn't support EDL tokens
