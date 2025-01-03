@@ -104,5 +104,5 @@ def check_earthdata_credentials(append=False) -> str:
     raise ValueError(
         'Please provide NASA Earthdata credentials via your .netrc file,'
         'the EARTHDATA_USERNAME and EARTHDATA_PASSWORD environment variables,'
-        'or an EDL Token via the EDL_TOKEN environment variable.'
+        'or an EDL Token via the EARTHDATA_TOKEN environment variable.'
     )

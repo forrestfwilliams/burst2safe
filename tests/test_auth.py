@@ -83,9 +83,9 @@ def test_check_earthdata_credentials_env(tmp_path, monkeypatch):
 def test_check_earthdata_credentials_none(tmp_path, monkeypatch):
     netrc_path = tmp_path / '.netrc'
     with monkeypatch.context() as m:
-        m.delenv('EDL_TOKEN', raising=False)
-        m.delenv('EDL_USERNAME', raising=False)
-        m.delenv('EDL_PASSWORD', raising=False)
+        m.delenv('EARTHDATA_TOKEN', raising=False)
+        m.delenv('EARTHDATA_USERNAME', raising=False)
+        m.delenv('EARTHDATA_PASSWORD', raising=False)
         m.setattr(auth, 'get_netrc', lambda: netrc_path)
         with pytest.raises(ValueError, match='Please provide NASA Earthdata credentials*'):
             auth.check_earthdata_credentials()
